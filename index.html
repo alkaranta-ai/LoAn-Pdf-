@@ -206,6 +206,42 @@
     .doc-type-btn .name { font-size: 12px; font-weight: 700; color: var(--negro); }
     .doc-type-btn .desc { font-size: 11px; color: var(--gris); margin-top: 2px; }
 
+    /* ─── SELECTOR DE ORIENTACIÓN DE HOJA ─── */
+    .orient-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .orient-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px;
+      border: 2px solid var(--gris-light);
+      border-radius: 12px;
+      background: var(--blanco);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--negro);
+      transition: all .2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .orient-btn.selected {
+      border-color: var(--rosa);
+      background: var(--rosa-pale);
+      color: var(--rosa);
+    }
+    .orient-icon {
+      display: inline-block;
+      border: 2px solid currentColor;
+      border-radius: 2px;
+    }
+    .orient-icon.vertical { width: 12px; height: 16px; }
+    .orient-icon.horizontal { width: 16px; height: 12px; }
+
     /* ─── AI AREA ─── */
     .ai-bubble {
       background: linear-gradient(135deg, var(--rosa-pale), #FFF0F8);
@@ -339,6 +375,10 @@
       padding: 60px 70px;
       box-sizing: border-box;
       position: relative;
+    }
+    .pdf-page.landscape {
+      width: 1123px;
+      min-height: 794px;
     }
     .pdf-header {
       display: flex;
@@ -608,6 +648,14 @@
   <!-- Acciones finales -->
   <div class="card">
     <div class="card-title">📤 Generar PDF</div>
+    <div class="orient-selector" id="orient-selector-crear">
+      <div class="orient-btn selected" data-orient="p" onclick="setOrientacion('crear','p')">
+        <span class="orient-icon vertical"></span> Vertical
+      </div>
+      <div class="orient-btn" data-orient="l" onclick="setOrientacion('crear','l')">
+        <span class="orient-icon horizontal"></span> Horizontal
+      </div>
+    </div>
     <button class="btn btn-primary" onclick="previsualizarPDF()" style="margin-bottom:10px;">
       👁️ Vista Previa
     </button>
@@ -707,6 +755,14 @@
 
   <div class="card">
     <div class="card-title">📤 Generar PDF</div>
+    <div class="orient-selector" id="orient-selector-taller">
+      <div class="orient-btn selected" data-orient="p" onclick="setOrientacion('taller','p')">
+        <span class="orient-icon vertical"></span> Vertical
+      </div>
+      <div class="orient-btn" data-orient="l" onclick="setOrientacion('taller','l')">
+        <span class="orient-icon horizontal"></span> Horizontal
+      </div>
+    </div>
     <button class="btn btn-primary" onclick="previsualizarTallerPDF()" style="margin-bottom:10px;">
       👁️ Vista Previa
     </button>
@@ -799,6 +855,16 @@
 // ============================================================
 let selectedType = 'presupuesto';
 let photos = []; // { dataUrl, name }
+let orientacionCrear = 'p';   // 'p' vertical, 'l' horizontal
+let orientacionTaller = 'p'; // 'p' vertical, 'l' horizontal
+
+function setOrientacion(panel, orient) {
+  if (panel === 'crear') orientacionCrear = orient;
+  else orientacionTaller = orient;
+  document.querySelectorAll(`#orient-selector-${panel} .orient-btn`).forEach(b => {
+    b.classList.toggle('selected', b.dataset.orient === orient);
+  });
+}
 let iaContent = '';
 let pdfBlob = null;
 let currentPreviewMode = 'crear'; // 'crear' | 'taller'
@@ -1142,9 +1208,10 @@ function buildPDFHtml() {
   const bodyHtml = textoASeccionesHtml(cuerpo);
 
   const refText = ref ? `#${ref}` : `#${Date.now().toString().slice(-6)}`;
+  const claseOrient = orientacionCrear === 'l' ? ' landscape' : '';
 
   return `
-    <div class="pdf-page">
+    <div class="pdf-page${claseOrient}">
       <div class="pdf-header">
         <div class="pdf-logo-block">
           <h2>${cfg.nombre || 'LoAn Estética'}</h2>
@@ -1208,15 +1275,16 @@ async function descargarPDF() {
     else { img.onload = r; img.onerror = r; }
   })));
 
+  const anchoCaptura = orientacionCrear === 'l' ? 1123 : 794;
   const canvas = await html2canvas(tpl.querySelector('.pdf-page'), {
     scale: 2,
     useCORS: true,
     backgroundColor: '#ffffff',
-    width: 794,
+    width: anchoCaptura,
   });
 
   const imgData = canvas.toDataURL('image/jpeg', 0.92);
-  const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+  const pdf = new jsPDF({ orientation: orientacionCrear, unit: 'mm', format: 'a4' });
   const pdfW = pdf.internal.pageSize.getWidth();
   const pdfH = (canvas.height * pdfW) / canvas.width;
 
@@ -1245,9 +1313,10 @@ async function compartirPDF() {
   const tpl = document.getElementById('pdf-template');
   tpl.innerHTML = buildPDFHtml();
 
-  const canvas = await html2canvas(tpl.querySelector('.pdf-page'), { scale: 2, backgroundColor: '#ffffff', width: 794 });
+  const anchoCapturaShare = orientacionCrear === 'l' ? 1123 : 794;
+  const canvas = await html2canvas(tpl.querySelector('.pdf-page'), { scale: 2, backgroundColor: '#ffffff', width: anchoCapturaShare });
   const imgData = canvas.toDataURL('image/jpeg', 0.9);
-  const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+  const pdf = new jsPDF({ orientation: orientacionCrear, unit: 'mm', format: 'a4' });
   const pdfW = pdf.internal.pageSize.getWidth();
   const pdfH = (canvas.height * pdfW) / canvas.width;
   pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH);
@@ -1475,6 +1544,7 @@ function buildTallerPages() {
   const fecha = document.getElementById('taller-fecha').value || '';
   let fechaDisplay = fecha;
   try { fechaDisplay = new Date(fecha + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' }); } catch (e) {}
+  const claseOrient = orientacionTaller === 'l' ? ' landscape' : '';
 
   if (selectedTallerType === 'taller_certificado') {
     const data = tallerResult || {};
@@ -1483,7 +1553,7 @@ function buildTallerPages() {
       const cuerpo = (data.cuerpo || 'Por medio del presente se certifica que {nombre} participó del taller.')
         .replace(/\{nombre\}/g, `<strong>${nombre}</strong>`);
       return `
-      <div class="pdf-page cert-page">
+      <div class="pdf-page cert-page${claseOrient}">
         <div class="cert-border">
           <div class="cert-header">${cfg.nombre || 'LoAn Estética'}</div>
           <div class="cert-title">Certificado de Participación</div>
@@ -1503,7 +1573,7 @@ function buildTallerPages() {
     const theadHtml = `<tr>${columnas.map(c => `<th>${c}</th>`).join('')}</tr>`;
     const rowsHtml = filas.map(f => `<tr>${columnas.map((_, idx) => `<td>${(f[idx] || '')}</td>`).join('')}</tr>`).join('');
     return [`
-      <div class="pdf-page">
+      <div class="pdf-page${claseOrient}">
         <div class="pdf-header">
           <div class="pdf-logo-block">
             <h2>${cfg.nombre || 'LoAn Estética'}</h2>
@@ -1527,7 +1597,7 @@ function buildTallerPages() {
   const bodyHtml = textoASeccionesHtml((tallerResult && tallerResult.texto) || '');
   const tipoLabel = selectedTallerType === 'taller_apunte' ? '📘 Apunte / Guía' : '🗂️ Documento del Taller';
   return [`
-    <div class="pdf-page">
+    <div class="pdf-page${claseOrient}">
       <div class="pdf-header">
         <div class="pdf-logo-block">
           <h2>${cfg.nombre || 'LoAn Estética'}</h2>
@@ -1565,7 +1635,8 @@ async function descargarTallerPDF() {
   const { jsPDF } = window.jspdf;
   const tpl = document.getElementById('pdf-template');
   const pages = buildTallerPages();
-  const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+  const pdf = new jsPDF({ orientation: orientacionTaller, unit: 'mm', format: 'a4' });
+  const anchoCapturaTaller = orientacionTaller === 'l' ? 1123 : 794;
   let thumbnail = null;
 
   for (let i = 0; i < pages.length; i++) {
@@ -1574,7 +1645,7 @@ async function descargarTallerPDF() {
     await Promise.all([...imgs].map(img => new Promise(r => {
       if (img.complete) r(); else { img.onload = r; img.onerror = r; }
     })));
-    const canvas = await html2canvas(tpl.querySelector('.pdf-page'), { scale: 2, useCORS: true, backgroundColor: '#ffffff', width: 794 });
+    const canvas = await html2canvas(tpl.querySelector('.pdf-page'), { scale: 2, useCORS: true, backgroundColor: '#ffffff', width: anchoCapturaTaller });
     const imgData = canvas.toDataURL('image/jpeg', 0.92);
     if (i === 0) thumbnail = imgData;
     const pdfW = pdf.internal.pageSize.getWidth();
@@ -1600,11 +1671,12 @@ async function compartirTallerPDF() {
   const { jsPDF } = window.jspdf;
   const tpl = document.getElementById('pdf-template');
   const pages = buildTallerPages();
-  const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+  const pdf = new jsPDF({ orientation: orientacionTaller, unit: 'mm', format: 'a4' });
+  const anchoCapturaTallerShare = orientacionTaller === 'l' ? 1123 : 794;
 
   for (let i = 0; i < pages.length; i++) {
     tpl.innerHTML = pages[i];
-    const canvas = await html2canvas(tpl.querySelector('.pdf-page'), { scale: 2, backgroundColor: '#ffffff', width: 794 });
+    const canvas = await html2canvas(tpl.querySelector('.pdf-page'), { scale: 2, backgroundColor: '#ffffff', width: anchoCapturaTallerShare });
     const imgData = canvas.toDataURL('image/jpeg', 0.9);
     const pdfW = pdf.internal.pageSize.getWidth();
     const pdfH = (canvas.height * pdfW) / canvas.width;
