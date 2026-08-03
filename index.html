@@ -397,6 +397,34 @@
     }
     .pdf-divider { height: 1px; background: #F2C4D4; margin: 20px 0; }
 
+    /* ─── TALLER: TABLA DE PLANILLA ─── */
+    .taller-tabla { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .taller-tabla th {
+      background: #C9527A; color: #fff; text-align: left;
+      padding: 8px 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
+    }
+    .taller-tabla td { padding: 9px 10px; border-bottom: 1px solid #F2C4D4; color: #1A1014; }
+    .taller-tabla tr:nth-child(even) td { background: #FDF0F4; }
+
+    /* ─── TALLER: CERTIFICADO ─── */
+    .cert-page { display: flex; align-items: center; justify-content: center; }
+    .cert-border {
+      width: 100%; height: 100%;
+      border: 3px solid #C9527A;
+      outline: 1px solid #F2C4D4;
+      outline-offset: -14px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center;
+      padding: 50px;
+      box-sizing: border-box;
+    }
+    .cert-header { font-size: 16px; color: #9E3A5C; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 30px; }
+    .cert-title { font-size: 34px; color: #C9527A; font-style: italic; margin-bottom: 10px; }
+    .cert-taller { font-size: 16px; color: #1A1014; font-weight: bold; margin-bottom: 26px; }
+    .cert-body { font-size: 15px; line-height: 1.9; color: #1A1014; max-width: 560px; margin-bottom: 30px; }
+    .cert-fecha { font-size: 13px; color: #6B5560; margin-bottom: 24px; }
+    .cert-firma { font-size: 13px; color: #9E3A5C; border-top: 1px solid #F2C4D4; padding-top: 10px; }
+
     /* ─── TOAST ─── */
     .toast {
       position: fixed;
@@ -458,6 +486,7 @@
 <!-- TABS -->
 <div class="tabs" id="tabs">
   <div class="tab active" data-panel="crear">✨ Crear</div>
+  <div class="tab" data-panel="talleres">🎓 Talleres</div>
   <div class="tab" data-panel="historial">📂 Historial</div>
   <div class="tab" data-panel="config">⚙️ Config</div>
 </div>
@@ -589,6 +618,105 @@
 
 </div><!-- /panel-crear -->
 
+<!-- ============ PANEL TALLERES ============ -->
+<div class="panel" id="panel-talleres">
+
+  <div class="card">
+    <div class="card-title">🎓 Tipo de documento para el taller</div>
+    <div class="doc-types" id="taller-doc-types">
+      <div class="doc-type-btn taller-doc-type-btn selected" data-type="taller_apunte">
+        <div class="icon">📘</div>
+        <div class="name">Apunte / Guía</div>
+        <div class="desc">Contenido para explicar</div>
+      </div>
+      <div class="doc-type-btn taller-doc-type-btn" data-type="taller_planilla">
+        <div class="icon">📝</div>
+        <div class="name">Planilla</div>
+        <div class="desc">Asistencia / inscripción</div>
+      </div>
+      <div class="doc-type-btn taller-doc-type-btn" data-type="taller_certificado">
+        <div class="icon">🏆</div>
+        <div class="name">Certificado</div>
+        <div class="desc">De participación</div>
+      </div>
+      <div class="doc-type-btn taller-doc-type-btn" data-type="taller_libre">
+        <div class="icon">🗂️</div>
+        <div class="name">Libre</div>
+        <div class="desc">Lo que necesites</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📌 Datos del taller</div>
+    <div class="field">
+      <label>Nombre del taller</label>
+      <input type="text" id="taller-nombre" placeholder="Ej: Taller de lifting de pestañas" />
+    </div>
+    <div class="field">
+      <label>Fecha</label>
+      <input type="date" id="taller-fecha" />
+    </div>
+    <div class="field" id="campo-taller-columnas" style="display:none;">
+      <label>Columnas de la planilla (opcional)</label>
+      <input type="text" id="taller-columnas" placeholder="Ej: Nombre, Teléfono, Asistió" />
+    </div>
+    <div class="field" id="campo-taller-nombres" style="display:none;">
+      <label>Nombres de las participantes (opcional — si no los ponés, la IA los busca en las fotos que adjuntes)</label>
+      <textarea id="taller-nombres" rows="3" placeholder="Un nombre por línea"></textarea>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🪄 Contale a la IA qué querés armar</div>
+    <div class="field">
+      <textarea id="taller-descripcion" rows="5"
+        placeholder="Ejemplo: 'Armá un apunte con los pasos del lifting de pestañas que expliqué en las fotos, agregá los tiempos de pausado y los cuidados posteriores'"
+      ></textarea>
+    </div>
+
+    <div class="field">
+      <label>Fotos (de apuntes, textos, pizarra, listas, lo que sea) — la IA lee lo que dicen</label>
+      <div class="photo-grid" id="taller-photo-grid">
+        <label class="photo-add" for="taller-inp-foto">
+          <span style="font-size:28px;">+</span>
+          <span>Agregar</span>
+        </label>
+      </div>
+      <input type="file" id="taller-inp-foto" accept="image/*" multiple style="display:none" onchange="agregarFotosTaller(this)" />
+    </div>
+
+    <div class="field">
+      <label>Adjuntar PDF o TXT (opcional)</label>
+      <label for="taller-inp-adjunto" class="photo-add" style="aspect-ratio:unset; padding:14px; flex-direction:row; gap:10px; justify-content:flex-start; border-radius:10px;">
+        <span style="font-size:22px;">📎</span>
+        <span id="taller-adjunto-nombre" style="font-size:13px; color:var(--gris);">PDF o texto</span>
+      </label>
+      <input type="file" id="taller-inp-adjunto" accept=".pdf,.txt,text/plain,application/pdf" style="display:none" onchange="cargarAdjuntoTaller(this)" />
+    </div>
+
+    <button class="btn btn-primary" id="btn-generar-taller-ia" onclick="tallerGenerarConIA()">
+      🪄 Generar con Claude
+    </button>
+
+    <div id="taller-ia-result" style="margin-top:14px; display:none;">
+      <div class="ai-badge">✨ Contenido generado por IA</div>
+      <div class="ai-bubble" id="taller-ia-texto"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📤 Generar PDF</div>
+    <button class="btn btn-primary" onclick="previsualizarTallerPDF()" style="margin-bottom:10px;">
+      👁️ Vista Previa
+    </button>
+    <button class="btn btn-ghost" onclick="descargarTallerPDF()">
+      ⬇️ Descargar PDF
+    </button>
+  </div>
+
+</div><!-- /panel-talleres -->
+
 <!-- ============ PANEL HISTORIAL ============ -->
 <div class="panel" id="panel-historial">
   <div id="historial-lista">
@@ -640,6 +768,24 @@
   </div>
 
   <div class="card">
+    <div class="card-title">🔑 Clave API de Claude (para la pestaña Talleres)</div>
+    <p style="font-size:13px; color:var(--gris); line-height:1.6; margin-bottom:12px;">
+      La pestaña <strong>Talleres</strong> necesita tu propia clave para poder leer el texto de tus fotos y armar los documentos. Se guarda solo en este celular/navegador (localStorage), nunca se envía a ningún servidor nuestro — viaja directo desde tu dispositivo a Anthropic.
+    </p>
+    <ol style="font-size:13px; color:var(--gris); line-height:1.8; margin:0 0 12px 18px; padding:0;">
+      <li>Entrá a <strong>console.anthropic.com</strong> desde el celular o la compu</li>
+      <li>Creá una cuenta (o iniciá sesión) y cargá un saldo mínimo</li>
+      <li>Andá a "API Keys" → "Create Key"</li>
+      <li>Copiá la clave (empieza con <code>sk-ant-</code>) y pegala acá abajo</li>
+    </ol>
+    <div class="field">
+      <label>Clave API (sk-ant-...)</label>
+      <input type="password" id="cfg-apikey" placeholder="sk-ant-api03-..." autocomplete="off" />
+    </div>
+    <button class="btn btn-primary" onclick="guardarConfig()">💾 Guardar clave</button>
+  </div>
+
+  <div class="card">
     <div class="card-title">🗑️ Datos</div>
     <button class="btn btn-secondary" style="width:100%;" onclick="limpiarHistorial()">
       Borrar todo el historial
@@ -652,8 +798,8 @@
 <!-- ─── VISTA PREVIA ─── -->
 <div id="preview-wrap">
   <div class="preview-toolbar">
-    <button class="btn btn-primary" onclick="descargarPDF()">⬇️ Descargar</button>
-    <button class="btn btn-secondary" onclick="compartirPDF()">📤 Compartir</button>
+    <button class="btn btn-primary" onclick="descargarActual()">⬇️ Descargar</button>
+    <button class="btn btn-secondary" onclick="compartirActual()">📤 Compartir</button>
     <button class="btn btn-ghost" onclick="cerrarPreview()">✕ Cerrar</button>
   </div>
   <div id="preview-container"></div>
@@ -673,6 +819,13 @@ let selectedType = 'presupuesto';
 let photos = []; // { dataUrl, name }
 let iaContent = '';
 let pdfBlob = null;
+let currentPreviewMode = 'crear'; // 'crear' | 'taller'
+
+// ── Talleres ──
+let selectedTallerType = 'taller_apunte';
+let tallerPhotos = []; // { dataUrl, name }
+let tallerAdjuntoTexto = '';
+let tallerResult = null; // { texto } | { columnas, filas, titulo } | { cuerpo, nombres, tituloTaller }
 
 const DOC_TYPES = {
   presupuesto:    { label: 'Presupuesto',         icon: '💰' },
@@ -681,6 +834,10 @@ const DOC_TYPES = {
   consentimiento: { label: 'Consentimiento',       icon: '✍️' },
   turno:          { label: 'Confirmación de Turno',icon: '📅' },
   otro:           { label: 'Documento',            icon: '📝' },
+  taller_apunte:      { label: 'Apunte de Taller',   icon: '📘' },
+  taller_planilla:    { label: 'Planilla de Taller',  icon: '📝' },
+  taller_certificado: { label: 'Certificado',         icon: '🏆' },
+  taller_libre:       { label: 'Documento de Taller', icon: '🗂️' },
 };
 
 // ============================================================
@@ -701,12 +858,26 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Doc type buttons
-  document.querySelectorAll('.doc-type-btn').forEach(btn => {
+  // Doc type buttons (Crear)
+  document.querySelectorAll('#doc-types .doc-type-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.doc-type-btn').forEach(b => b.classList.remove('selected'));
+      document.querySelectorAll('#doc-types .doc-type-btn').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
       selectedType = btn.dataset.type;
+    });
+  });
+
+  // Doc type buttons (Talleres)
+  document.getElementById('taller-fecha').valueAsDate = new Date();
+  document.querySelectorAll('#taller-doc-types .doc-type-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#taller-doc-types .doc-type-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedTallerType = btn.dataset.type;
+      tallerResult = null;
+      document.getElementById('taller-ia-result').style.display = 'none';
+      document.getElementById('campo-taller-columnas').style.display = selectedTallerType === 'taller_planilla' ? 'block' : 'none';
+      document.getElementById('campo-taller-nombres').style.display = selectedTallerType === 'taller_certificado' ? 'block' : 'none';
     });
   });
 });
@@ -721,6 +892,7 @@ function cargarConfig() {
   document.getElementById('cfg-tel').value    = cfg.tel    || '';
   document.getElementById('cfg-ig').value     = cfg.ig     || '';
   document.getElementById('cfg-email').value  = cfg.email  || '';
+  document.getElementById('cfg-apikey').value = cfg.apikey || '';
 }
 
 function guardarConfig() {
@@ -730,6 +902,7 @@ function guardarConfig() {
     tel:    document.getElementById('cfg-tel').value,
     ig:     document.getElementById('cfg-ig').value,
     email:  document.getElementById('cfg-email').value,
+    apikey: document.getElementById('cfg-apikey').value.trim(),
   };
   localStorage.setItem('loan_config', JSON.stringify(cfg));
   toast('✅ Configuración guardada');
@@ -901,6 +1074,48 @@ function editarManual() {
 }
 
 // ============================================================
+//  PARSEO DE TEXTO A SECCIONES (reutilizado por Crear y Talleres)
+// ============================================================
+function textoASeccionesHtml(cuerpo) {
+  let bodyHtml = '';
+  if (!cuerpo) return bodyHtml;
+
+  const lines = cuerpo.split('\n');
+  let currentSection = '';
+  let currentContent = [];
+
+  const flushSection = () => {
+    if (currentSection) {
+      bodyHtml += `<div class="pdf-section">
+        <div class="pdf-section-title">${currentSection}</div>
+        <p>${currentContent.join('<br />')}</p>
+      </div>`;
+    } else if (currentContent.length) {
+      bodyHtml += `<div class="pdf-section"><p>${currentContent.join('<br />')}</p></div>`;
+    }
+  };
+
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    // Título: línea corta (hasta 60 chars) que termina en ":" y no tiene punto
+    const estitulo = trimmed.endsWith(':') && trimmed.length <= 60 && !trimmed.includes('.');
+    // O formato "**Título**:" o "### Título"
+    const esTituloMd = /^(\*\*|#{1,3}\s?)(.+?)(\*\*)?:?$/.test(trimmed) && trimmed.length <= 60;
+    if (estitulo || esTituloMd) {
+      flushSection();
+      currentSection = trimmed.replace(/^[#\*\s]+/, '').replace(/:$/, '').trim();
+      currentContent = [];
+    } else {
+      const limpia = trimmed.replace(/\*\*(.*?)\*\*/g, '$1').replace(/^[-•]\s*/, '');
+      currentContent.push(limpia);
+    }
+  });
+  flushSection();
+  return bodyHtml;
+}
+
+// ============================================================
 //  CONSTRUIR HTML DEL PDF
 // ============================================================
 function buildPDFHtml() {
@@ -929,44 +1144,8 @@ function buildPDFHtml() {
     </div>`;
   }
 
-  // Body sections — detecta líneas que terminan en ":" como títulos de sección
-  // Acepta mayúsculas, minúsculas y formato mixto que devuelva la IA
-  let bodyHtml = '';
-  if (cuerpo) {
-    const lines = cuerpo.split('\n');
-    let currentSection = '';
-    let currentContent = [];
-
-    const flushSection = () => {
-      if (currentSection) {
-        bodyHtml += `<div class="pdf-section">
-          <div class="pdf-section-title">${currentSection}</div>
-          <p>${currentContent.join('<br />')}</p>
-        </div>`;
-      } else if (currentContent.length) {
-        bodyHtml += `<div class="pdf-section"><p>${currentContent.join('<br />')}</p></div>`;
-      }
-    };
-
-    lines.forEach(line => {
-      const trimmed = line.trim();
-      if (!trimmed) return;
-      // Título: línea corta (hasta 60 chars) que termina en ":" y no tiene punto
-      const estitulo = trimmed.endsWith(':') && trimmed.length <= 60 && !trimmed.includes('.');
-      // O formato "**Título**:" o "### Título"
-      const esTituloMd = /^(\*\*|#{1,3}\s?)(.+?)(\*\*)?:?$/.test(trimmed) && trimmed.length <= 60;
-      if (estitulo || esTituloMd) {
-        flushSection();
-        currentSection = trimmed.replace(/^[#\*\s]+/, '').replace(/:$/, '').trim();
-        currentContent = [];
-      } else {
-        // Limpiar markdown básico
-        const limpia = trimmed.replace(/\*\*(.*?)\*\*/g, '$1').replace(/^[-•]\s*/, '');
-        currentContent.push(limpia);
-      }
-    });
-    flushSection();
-  }
+  // Body sections — parseo reutilizable (ver textoASeccionesHtml)
+  const bodyHtml = textoASeccionesHtml(cuerpo);
 
   const refText = ref ? `#${ref}` : `#${Date.now().toString().slice(-6)}`;
 
@@ -1007,8 +1186,12 @@ function previsualizarPDF() {
   const html = buildPDFHtml();
   const container = document.getElementById('preview-container');
   container.innerHTML = `<div style="padding:24px; font-family:Georgia,serif;">${html}</div>`;
+  currentPreviewMode = 'crear';
   document.getElementById('preview-wrap').classList.add('open');
 }
+
+function descargarActual() { currentPreviewMode === 'taller' ? descargarTallerPDF() : descargarPDF(); }
+function compartirActual() { currentPreviewMode === 'taller' ? compartirTallerPDF() : compartirPDF(); }
 
 function cerrarPreview() {
   document.getElementById('preview-wrap').classList.remove('open');
@@ -1083,6 +1266,384 @@ async function compartirPDF() {
 }
 
 // ============================================================
+//  TALLERES — FOTOS Y ADJUNTOS
+// ============================================================
+function agregarFotosTaller(input) {
+  const files = Array.from(input.files);
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      tallerPhotos.push({ dataUrl: e.target.result, name: file.name });
+      renderFotosTaller();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function renderFotosTaller() {
+  const grid = document.getElementById('taller-photo-grid');
+  grid.innerHTML = `
+    <label class="photo-add" for="taller-inp-foto">
+      <span style="font-size:28px;">+</span>
+      <span>Agregar</span>
+    </label>`;
+  tallerPhotos.forEach((p, i) => {
+    const img = document.createElement('div');
+    img.style.position = 'relative';
+    img.innerHTML = `
+      <img src="${p.dataUrl}" class="photo-thumb" />
+      <button onclick="borrarFotoTaller(${i})" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:22px;height:22px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>`;
+    grid.appendChild(img);
+  });
+}
+
+function borrarFotoTaller(i) {
+  tallerPhotos.splice(i, 1);
+  renderFotosTaller();
+}
+
+async function cargarAdjuntoTaller(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('taller-adjunto-nombre').textContent = file.name;
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  if (ext === 'pdf') {
+    toast('📄 Leyendo PDF...');
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let texto = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        texto += content.items.map(it => it.str).join(' ') + '\n';
+      }
+      tallerAdjuntoTexto = texto.trim()
+        ? texto.trim()
+        : `[El PDF ${file.name} no tiene texto extraíble — puede ser una imagen escaneada. Probá subirlo como foto en vez de PDF, así la IA lee el contenido visualmente.]`;
+      toast('📄 PDF leído correctamente');
+    } catch (err) {
+      tallerAdjuntoTexto = `[No se pudo leer el PDF ${file.name}: ${err.message}]`;
+      toast('⚠️ Error leyendo el PDF');
+    }
+  } else {
+    const reader = new FileReader();
+    reader.onload = e => { tallerAdjuntoTexto = e.target.result; toast('📎 Archivo cargado'); };
+    reader.readAsText(file);
+  }
+}
+
+// ============================================================
+//  TALLERES — LLAMADA DIRECTA A LA API DE CLAUDE (con visión)
+// ============================================================
+async function llamarClaudeIA(apiKey, systemPrompt, userText, images) {
+  const content = [];
+  if (userText) content.push({ type: 'text', text: userText });
+  images.forEach(img => {
+    const match = img.dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    if (match) {
+      content.push({ type: 'image', source: { type: 'base64', media_type: match[1], data: match[2] } });
+    }
+  });
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-5',
+      max_tokens: 4096,
+      system: systemPrompt,
+      messages: [{ role: 'user', content }],
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    if (res.status === 401) throw new Error('Clave API inválida — revisá que la pegaste bien en Config');
+    throw new Error(`El servidor respondió ${res.status}: ${errText.slice(0, 200)}`);
+  }
+  const data = await res.json();
+  const textBlock = (data.content || []).find(b => b.type === 'text');
+  if (!textBlock) throw new Error('La IA no devolvió texto');
+  return textBlock.text;
+}
+
+function parsearJSONIA(texto) {
+  const limpio = texto.replace(/```json/gi, '').replace(/```/g, '').trim();
+  return JSON.parse(limpio);
+}
+
+// ============================================================
+//  TALLERES — GENERAR CONTENIDO CON IA
+// ============================================================
+async function tallerGenerarConIA() {
+  const cfg = getConfig();
+  const apiKey = cfg.apikey;
+  if (!apiKey) { toast('🔑 Cargá tu clave de API en la pestaña Config'); return; }
+
+  const descripcion = document.getElementById('taller-descripcion').value.trim();
+  if (!descripcion && !tallerAdjuntoTexto && tallerPhotos.length === 0) {
+    toast('✏️ Contame qué querés armar, o adjuntá una foto/PDF');
+    return;
+  }
+
+  const btn = document.getElementById('btn-generar-taller-ia');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="loading-dots"><span>•</span><span>•</span><span>•</span></span> Generando...`;
+
+  const tallerNombre = document.getElementById('taller-nombre').value || 'Taller';
+  const fecha = document.getElementById('taller-fecha').value;
+  const nombreNegocio = cfg.nombre || 'LoAn Estética';
+
+  let systemPrompt, userText;
+
+  if (selectedTallerType === 'taller_planilla') {
+    systemPrompt = `Sos la asistente de "${nombreNegocio}" que arma planillas para talleres presenciales.
+Tu ÚNICA salida debe ser un JSON válido, sin texto antes ni después ni bloques de código, con este formato exacto:
+{"titulo":"nombre de la planilla","columnas":["Columna 1","Columna 2"],"filas":[["dato1","dato2"],["dato1","dato2"]]}
+Reglas:
+- Si el usuario pidió columnas específicas, usá esas. Si no, elegí columnas razonables para una planilla de taller (por ejemplo: Nombre, Teléfono, Asistió/Firma).
+- Si hay nombres o datos en fotos o en el texto adjunto, extraelos y armá una fila por persona.
+- Si no hay datos de personas todavía, dejá "filas" como un array vacío y "columnas" con las columnas sugeridas — es una planilla para completar a mano.
+- Nunca inventes nombres que no aparecen en la información dada.`;
+    const columnasInput = document.getElementById('taller-columnas').value.trim();
+    userText = `Taller: ${tallerNombre}\nFecha: ${fecha}\n\nQUÉ NECESITO:\n${descripcion || 'Armá una planilla de inscripción/asistencia estándar para este taller'}${columnasInput ? `\n\nColumnas sugeridas: ${columnasInput}` : ''}${tallerAdjuntoTexto ? `\n\nCONTENIDO ADJUNTO (PDF/TXT):\n${tallerAdjuntoTexto}` : ''}\n\nSi adjunté fotos, pueden tener una lista de nombres u otros datos: leelos y usalos para las filas.`;
+  } else if (selectedTallerType === 'taller_certificado') {
+    systemPrompt = `Sos la asistente de "${nombreNegocio}" que arma certificados de participación para talleres.
+Tu ÚNICA salida debe ser un JSON válido, sin texto antes ni después ni bloques de código, con este formato exacto:
+{"tituloTaller":"nombre del taller","cuerpo":"texto del certificado en español rioplatense, formal y cálido, usando {nombre} en el lugar exacto donde va el nombre de la persona","nombres":["Nombre Apellido","Nombre Apellido"]}
+Reglas:
+- El texto de "cuerpo" tiene que sonar bien para cualquier nombre que se reemplace en {nombre}, por ejemplo: "Por medio del presente se certifica que {nombre} participó del taller ..."
+- Si el usuario dio una lista de nombres (escritos o en una foto), usalos tal cual están escritos, sin inventar ni corregir de más.
+- Si no hay ningún nombre disponible, dejá "nombres" como array vacío.`;
+    const nombresInput = document.getElementById('taller-nombres').value.trim();
+    userText = `Taller: ${tallerNombre}\nFecha: ${fecha}\n\nQUÉ NECESITO:\n${descripcion || 'Certificado de participación estándar para este taller'}${nombresInput ? `\n\nNombres de las participantes:\n${nombresInput}` : ''}${tallerAdjuntoTexto ? `\n\nCONTENIDO ADJUNTO (PDF/TXT):\n${tallerAdjuntoTexto}` : ''}\n\nSi adjunté fotos (por ejemplo una planilla de asistencia), pueden tener los nombres: leelos y usalos.`;
+  } else {
+    const tipoTxt = selectedTallerType === 'taller_apunte' ? 'un apunte / guía de estudio' : 'un documento libre';
+    systemPrompt = `Sos la asistente de "${nombreNegocio}" que prepara material para talleres presenciales que da un profesional de estética.
+Tu trabajo es redactar el contenido completo de ${tipoTxt} para el taller.
+Reglas ESTRICTAS:
+- Si te adjuntan fotos, son fotos de apuntes, textos, pizarras o libros: LEÉ atentamente el texto que aparece en cada una y usalo como base del contenido, sin omitir nada relevante.
+- Si hay contenido de un PDF o TXT adjunto, incorporalo también.
+- Organizá el contenido en secciones: cada título de sección en su propia línea, corto (hasta 60 caracteres) y terminado en dos puntos ":", y debajo el desarrollo del punto.
+- Desarrollá cada punto con el detalle que corresponda, no resumas de más ni omitas información que te dieron.
+- Español rioplatense, tono claro y profesional, apto para entregar a alumnas/os.
+- NO pongas cabecera, logo, ni pie de página — de eso se encarga la plantilla.
+- NO escribas frases como "acá está tu apunte" ni ningún comentario tuyo. Empezá directo con el contenido.`;
+    userText = `Taller: ${tallerNombre}\nFecha: ${fecha}\n\nQUÉ QUIERO QUE ARMES:\n${descripcion}${tallerAdjuntoTexto ? `\n\nCONTENIDO EXTRAÍDO DE PDF/TXT ADJUNTO:\n${tallerAdjuntoTexto}` : ''}${tallerPhotos.length ? '\n\nHay fotos adjuntas: son apuntes/textos, leé lo que dicen y usalo como base del contenido.' : ''}`;
+  }
+
+  try {
+    const respuesta = await llamarClaudeIA(apiKey, systemPrompt, userText, tallerPhotos);
+    if (selectedTallerType === 'taller_planilla' || selectedTallerType === 'taller_certificado') {
+      tallerResult = parsearJSONIA(respuesta);
+    } else {
+      tallerResult = { texto: respuesta };
+    }
+    mostrarResultadoTaller();
+    toast('✅ Contenido generado');
+  } catch (e) {
+    console.error('Error generando taller con IA:', e);
+    toast('⚠️ ' + e.message);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '🪄 Generar con Claude';
+}
+
+function mostrarResultadoTaller() {
+  const box = document.getElementById('taller-ia-texto');
+  if (!tallerResult) return;
+  if (tallerResult.texto) {
+    box.textContent = tallerResult.texto;
+  } else if (tallerResult.columnas) {
+    const filas = tallerResult.filas || [];
+    box.textContent = `${tallerResult.titulo || ''}\nColumnas: ${tallerResult.columnas.join(' | ')}\n${filas.length ? filas.map(f => f.join(' | ')).join('\n') : '(planilla vacía para completar a mano)'}`;
+  } else if (tallerResult.cuerpo) {
+    const nombres = tallerResult.nombres || [];
+    box.textContent = `${tallerResult.tituloTaller || ''}\n\n${tallerResult.cuerpo}\n\nParticipantes: ${nombres.length ? nombres.join(', ') : '(ninguno cargado — se generará un certificado en blanco para completar)'}`;
+  }
+  document.getElementById('taller-ia-result').style.display = 'block';
+}
+
+// ============================================================
+//  TALLERES — CONSTRUIR HTML DEL / LOS PDF
+// ============================================================
+function buildTallerPages() {
+  const cfg = getConfig();
+  const tallerNombre = document.getElementById('taller-nombre').value || 'Taller';
+  const fecha = document.getElementById('taller-fecha').value || '';
+  let fechaDisplay = fecha;
+  try { fechaDisplay = new Date(fecha + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' }); } catch (e) {}
+
+  if (selectedTallerType === 'taller_certificado') {
+    const data = tallerResult || {};
+    const nombres = (data.nombres && data.nombres.length) ? data.nombres : ['________________________'];
+    return nombres.map(nombre => {
+      const cuerpo = (data.cuerpo || 'Por medio del presente se certifica que {nombre} participó del taller.')
+        .replace(/\{nombre\}/g, `<strong>${nombre}</strong>`);
+      return `
+      <div class="pdf-page cert-page">
+        <div class="cert-border">
+          <div class="cert-header">${cfg.nombre || 'LoAn Estética'}</div>
+          <div class="cert-title">Certificado de Participación</div>
+          <div class="cert-taller">${data.tituloTaller || tallerNombre}</div>
+          <div class="cert-body">${cuerpo}</div>
+          <div class="cert-fecha">${fechaDisplay}</div>
+          <div class="cert-firma">${cfg.nombre || 'LoAn Estética'}${cfg.dir ? ' — ' + cfg.dir : ''}</div>
+        </div>
+      </div>`;
+    });
+  }
+
+  if (selectedTallerType === 'taller_planilla') {
+    const data = tallerResult || { columnas: [], filas: [] };
+    const columnas = data.columnas || [];
+    const filas = (data.filas && data.filas.length) ? data.filas : [[], [], [], [], []];
+    const theadHtml = `<tr>${columnas.map(c => `<th>${c}</th>`).join('')}</tr>`;
+    const rowsHtml = filas.map(f => `<tr>${columnas.map((_, idx) => `<td>${(f[idx] || '')}</td>`).join('')}</tr>`).join('');
+    return [`
+      <div class="pdf-page">
+        <div class="pdf-header">
+          <div class="pdf-logo-block">
+            <h2>${cfg.nombre || 'LoAn Estética'}</h2>
+            <p>${cfg.dir || ''}</p>
+          </div>
+          <div class="pdf-meta">
+            <strong>Taller</strong>${data.titulo || tallerNombre}<br/>
+            <strong>Fecha</strong>${fechaDisplay}
+          </div>
+        </div>
+        <div class="pdf-badge">📝 Planilla</div>
+        <table class="taller-tabla"><thead>${theadHtml}</thead><tbody>${rowsHtml}</tbody></table>
+        <div class="pdf-footer">
+          <span>${cfg.nombre || 'LoAn Estética'} — ${cfg.dir || ''}</span>
+          <span>${cfg.email || ''} ${cfg.ig || ''}</span>
+        </div>
+      </div>`];
+  }
+
+  // taller_apunte / taller_libre
+  const bodyHtml = textoASeccionesHtml((tallerResult && tallerResult.texto) || '');
+  const tipoLabel = selectedTallerType === 'taller_apunte' ? '📘 Apunte / Guía' : '🗂️ Documento del Taller';
+  return [`
+    <div class="pdf-page">
+      <div class="pdf-header">
+        <div class="pdf-logo-block">
+          <h2>${cfg.nombre || 'LoAn Estética'}</h2>
+          <p>${cfg.dir || ''}</p>
+        </div>
+        <div class="pdf-meta">
+          <strong>Taller</strong>${tallerNombre}<br/>
+          <strong>Fecha</strong>${fechaDisplay}
+        </div>
+      </div>
+      <div class="pdf-badge">${tipoLabel}</div>
+      ${bodyHtml || '<div class="pdf-section"><p>Sin contenido</p></div>'}
+      <div class="pdf-footer">
+        <span>${cfg.nombre || 'LoAn Estética'} — ${cfg.dir || ''}</span>
+        <span>${cfg.email || ''} ${cfg.ig || ''}</span>
+      </div>
+    </div>`];
+}
+
+function previsualizarTallerPDF() {
+  if (!tallerResult) { toast('✏️ Primero generá el contenido con Claude'); return; }
+  const pages = buildTallerPages();
+  const container = document.getElementById('preview-container');
+  container.innerHTML = pages
+    .map(p => `<div style="padding:24px; font-family:Georgia,serif;">${p}</div>`)
+    .join('<hr style="border:none;border-top:2px dashed #F2C4D4;margin:20px 0;">');
+  currentPreviewMode = 'taller';
+  document.getElementById('preview-wrap').classList.add('open');
+}
+
+async function descargarTallerPDF() {
+  if (!tallerResult) { toast('✏️ Primero generá el contenido con Claude'); return; }
+  toast('📄 Generando PDF...');
+
+  const { jsPDF } = window.jspdf;
+  const tpl = document.getElementById('pdf-template');
+  const pages = buildTallerPages();
+  const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+  let thumbnail = null;
+
+  for (let i = 0; i < pages.length; i++) {
+    tpl.innerHTML = pages[i];
+    const imgs = tpl.querySelectorAll('img');
+    await Promise.all([...imgs].map(img => new Promise(r => {
+      if (img.complete) r(); else { img.onload = r; img.onerror = r; }
+    })));
+    const canvas = await html2canvas(tpl.querySelector('.pdf-page'), { scale: 2, useCORS: true, backgroundColor: '#ffffff', width: 794 });
+    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+    if (i === 0) thumbnail = imgData;
+    const pdfW = pdf.internal.pageSize.getWidth();
+    const pdfH = (canvas.height * pdfW) / canvas.width;
+    if (i > 0) pdf.addPage();
+    pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH);
+  }
+
+  const tallerNombre = (document.getElementById('taller-nombre').value || 'taller').replace(/\s+/g, '_');
+  const fechaArchivo = (document.getElementById('taller-fecha').value || '').replace(/-/g, '');
+  const nombreArchivo = `Taller_${tallerNombre}_${fechaArchivo || Date.now()}.pdf`;
+
+  guardarEnHistorialTaller(nombreArchivo, thumbnail);
+  pdf.save(nombreArchivo);
+  tpl.innerHTML = '';
+  toast('✅ PDF descargado');
+}
+
+async function compartirTallerPDF() {
+  if (!tallerResult) { toast('✏️ Primero generá el contenido con Claude'); return; }
+  if (!navigator.share) { descargarTallerPDF(); return; }
+
+  const { jsPDF } = window.jspdf;
+  const tpl = document.getElementById('pdf-template');
+  const pages = buildTallerPages();
+  const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+
+  for (let i = 0; i < pages.length; i++) {
+    tpl.innerHTML = pages[i];
+    const canvas = await html2canvas(tpl.querySelector('.pdf-page'), { scale: 2, backgroundColor: '#ffffff', width: 794 });
+    const imgData = canvas.toDataURL('image/jpeg', 0.9);
+    const pdfW = pdf.internal.pageSize.getWidth();
+    const pdfH = (canvas.height * pdfW) / canvas.width;
+    if (i > 0) pdf.addPage();
+    pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH);
+  }
+  tpl.innerHTML = '';
+
+  const blob = pdf.output('blob');
+  const tallerNombre = document.getElementById('taller-nombre').value || 'taller';
+  const file = new File([blob], `Taller_${tallerNombre}.pdf`, { type: 'application/pdf' });
+  await navigator.share({ title: 'Documento de Taller', files: [file] });
+}
+
+function guardarEnHistorialTaller(nombre, thumbnail) {
+  const historial = JSON.parse(localStorage.getItem('loan_historial') || '[]');
+  historial.unshift({
+    id: Date.now(),
+    nombre,
+    tipo: selectedTallerType,
+    cliente: document.getElementById('taller-nombre').value || '—',
+    fecha: document.getElementById('taller-fecha').value,
+    cuerpo: (tallerResult && tallerResult.texto) || JSON.stringify(tallerResult || {}),
+    thumbnail,
+    fotos: tallerPhotos.length,
+  });
+  if (historial.length > 50) historial.pop();
+  localStorage.setItem('loan_historial', JSON.stringify(historial));
+  renderHistorial();
+}
+
+// ============================================================
 //  HISTORIAL
 // ============================================================
 function guardarEnHistorial(nombre, thumbnail) {
@@ -1142,6 +1703,27 @@ function reusarItem(id) {
   const historial = JSON.parse(localStorage.getItem('loan_historial') || '[]');
   const item = historial.find(i => i.id === id);
   if (!item) return;
+
+  if (item.tipo && item.tipo.startsWith('taller_')) {
+    // Switch to Talleres tab
+    document.querySelectorAll('.tab').forEach(t => { t.classList.remove('active'); if (t.dataset.panel === 'talleres') t.classList.add('active'); });
+    document.querySelectorAll('.panel').forEach(p => { p.classList.remove('active'); if (p.id === 'panel-talleres') p.classList.add('active'); });
+    document.getElementById('taller-nombre').value = item.cliente === '—' ? '' : item.cliente;
+    document.getElementById('taller-fecha').valueAsDate = new Date();
+    document.getElementById('taller-descripcion').value = item.tipo === 'taller_apunte' || item.tipo === 'taller_libre' ? (item.cuerpo || '') : '';
+    selectedTallerType = item.tipo;
+    tallerResult = null;
+    document.getElementById('taller-ia-result').style.display = 'none';
+    document.querySelectorAll('#taller-doc-types .doc-type-btn').forEach(b => {
+      b.classList.remove('selected');
+      if (b.dataset.type === item.tipo) b.classList.add('selected');
+    });
+    document.getElementById('campo-taller-columnas').style.display = item.tipo === 'taller_planilla' ? 'block' : 'none';
+    document.getElementById('campo-taller-nombres').style.display = item.tipo === 'taller_certificado' ? 'block' : 'none';
+    toast('✅ Datos cargados para reusar');
+    return;
+  }
+
   // Switch to Crear tab
   document.querySelectorAll('.tab').forEach(t => { t.classList.remove('active'); if(t.dataset.panel==='crear') t.classList.add('active'); });
   document.querySelectorAll('.panel').forEach(p => { p.classList.remove('active'); if(p.id==='panel-crear') p.classList.add('active'); });
@@ -1150,7 +1732,7 @@ function reusarItem(id) {
   document.getElementById('inp-fecha').valueAsDate = new Date();
   document.getElementById('inp-descripcion').value = item.cuerpo || '';
   selectedType = item.tipo;
-  document.querySelectorAll('.doc-type-btn').forEach(b => {
+  document.querySelectorAll('#doc-types .doc-type-btn').forEach(b => {
     b.classList.remove('selected');
     if (b.dataset.type === item.tipo) b.classList.add('selected');
   });
