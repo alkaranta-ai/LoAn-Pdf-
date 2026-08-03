@@ -1,0 +1,1768 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#C9527A" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="LoAn Docs" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icono-192.png" />
+  <title>LoAn Estética — Documentos</title>
+
+  <!-- jsPDF + html2canvas -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- pdf.js: para leer el texto real de los PDFs adjuntos -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  </script>
+
+  <style>
+    /* ─── TOKENS LoAn ─── */
+    :root {
+      --rosa:       #C9527A;
+      --rosa-light: #F2C4D4;
+      --rosa-pale:  #FDF0F4;
+      --rosa-dark:  #9E3A5C;
+      --negro:      #1A1014;
+      --gris:       #6B5560;
+      --gris-light: #E8DDE1;
+      --blanco:     #FFFFFF;
+      --radius:     16px;
+      --shadow:     0 4px 24px rgba(201,82,122,.15);
+      --font-main:  'Georgia', serif;
+      --font-ui:    system-ui, -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-ui);
+      background: var(--rosa-pale);
+      color: var(--negro);
+      min-height: 100vh;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* ─── HEADER ─── */
+    header {
+      background: var(--rosa);
+      color: var(--blanco);
+      padding: 20px 24px 16px;
+      padding-top: calc(20px + env(safe-area-inset-top));
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 16px rgba(201,82,122,.3);
+    }
+    .logo-circle {
+      width: 44px; height: 44px;
+      background: rgba(255,255,255,.2);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    header h1 { font-size: 20px; font-weight: 700; letter-spacing: -.3px; }
+    header p  { font-size: 12px; opacity: .8; margin-top: 1px; }
+
+    /* ─── TABS ─── */
+    .tabs {
+      display: flex;
+      background: var(--blanco);
+      border-bottom: 1px solid var(--gris-light);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab {
+      flex-shrink: 0;
+      padding: 14px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--gris);
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+    .tab.active {
+      color: var(--rosa);
+      border-bottom-color: var(--rosa);
+    }
+
+    /* ─── MAIN ─── */
+    main { max-width: 700px; margin: 0 auto; padding: 20px 16px; }
+
+    /* ─── PANEL ─── */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ─── CARD ─── */
+    .card {
+      background: var(--blanco);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow);
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      color: var(--rosa);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ─── FORM ELEMENTS ─── */
+    label { display: block; font-size: 13px; font-weight: 600; color: var(--gris); margin-bottom: 6px; }
+    input, textarea, select {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--gris-light);
+      border-radius: 10px;
+      font-size: 15px;
+      font-family: var(--font-ui);
+      background: var(--rosa-pale);
+      color: var(--negro);
+      transition: border-color .2s;
+      -webkit-appearance: none;
+    }
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--rosa);
+      background: var(--blanco);
+    }
+    textarea { resize: vertical; min-height: 100px; }
+    .field { margin-bottom: 14px; }
+
+    /* ─── BUTTONS ─── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 13px 22px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all .2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-primary {
+      background: var(--rosa);
+      color: var(--blanco);
+      width: 100%;
+    }
+    .btn-primary:active { background: var(--rosa-dark); transform: scale(.98); }
+    .btn-secondary {
+      background: var(--gris-light);
+      color: var(--gris);
+    }
+    .btn-small {
+      padding: 8px 14px;
+      font-size: 13px;
+      border-radius: 8px;
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--rosa);
+      border: 1.5px solid var(--rosa-light);
+    }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* ─── DOC TYPE GRID ─── */
+    .doc-types {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .doc-type-btn {
+      padding: 14px 12px;
+      border: 2px solid var(--gris-light);
+      border-radius: 12px;
+      background: var(--blanco);
+      cursor: pointer;
+      text-align: center;
+      transition: all .2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .doc-type-btn.selected {
+      border-color: var(--rosa);
+      background: var(--rosa-pale);
+    }
+    .doc-type-btn .icon { font-size: 24px; margin-bottom: 6px; }
+    .doc-type-btn .name { font-size: 12px; font-weight: 700; color: var(--negro); }
+    .doc-type-btn .desc { font-size: 11px; color: var(--gris); margin-top: 2px; }
+
+    /* ─── AI AREA ─── */
+    .ai-bubble {
+      background: linear-gradient(135deg, var(--rosa-pale), #FFF0F8);
+      border: 1.5px solid var(--rosa-light);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 14px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--negro);
+      white-space: pre-wrap;
+    }
+    .ai-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--rosa);
+      color: var(--blanco);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-bottom: 10px;
+    }
+    .loading-dots span {
+      display: inline-block;
+      animation: blink 1.2s infinite;
+      font-size: 20px;
+    }
+    .loading-dots span:nth-child(2) { animation-delay: .2s; }
+    .loading-dots span:nth-child(3) { animation-delay: .4s; }
+    @keyframes blink { 0%,80%,100%{opacity:.2} 40%{opacity:1} }
+
+    /* ─── PHOTOS ─── */
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .photo-thumb {
+      aspect-ratio: 1;
+      border-radius: 10px;
+      object-fit: cover;
+      width: 100%;
+    }
+    .photo-add {
+      aspect-ratio: 1;
+      border: 2px dashed var(--rosa-light);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      background: var(--rosa-pale);
+      color: var(--gris);
+      font-size: 11px;
+      gap: 4px;
+    }
+
+    /* ─── HISTORY LIST ─── */
+    .history-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px;
+      border-radius: 12px;
+      background: var(--blanco);
+      margin-bottom: 10px;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      transition: transform .15s;
+    }
+    .history-item:active { transform: scale(.98); }
+    .history-icon {
+      width: 44px; height: 44px;
+      background: var(--rosa-pale);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .history-info { flex: 1; min-width: 0; }
+    .history-title { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .history-meta { font-size: 12px; color: var(--gris); margin-top: 2px; }
+    .history-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+    /* ─── PREVIEW ─── */
+    #preview-wrap {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.7);
+      z-index: 200;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 16px;
+      padding-top: calc(20px + env(safe-area-inset-top));
+    }
+    #preview-wrap.open { display: flex; }
+    #preview-container {
+      background: var(--blanco);
+      border-radius: 16px;
+      overflow-y: auto;
+      width: 100%;
+      max-width: 680px;
+      flex: 1;
+    }
+    .preview-toolbar {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+      max-width: 680px;
+      margin-bottom: 12px;
+    }
+    .preview-toolbar .btn { flex: 1; }
+
+    /* ─── PDF TEMPLATE (hidden, rendered for export) ─── */
+    #pdf-template {
+      position: absolute;
+      left: -9999px;
+      top: 0;
+      width: 794px; /* A4 px at 96dpi */
+      background: white;
+      font-family: Georgia, serif;
+    }
+    .pdf-page {
+      width: 794px;
+      min-height: 1123px;
+      padding: 60px 70px;
+      box-sizing: border-box;
+      position: relative;
+    }
+    .pdf-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding-bottom: 24px;
+      border-bottom: 3px solid #C9527A;
+      margin-bottom: 28px;
+    }
+    .pdf-logo-block h2 {
+      font-size: 28px;
+      color: #C9527A;
+      letter-spacing: -1px;
+      font-style: italic;
+    }
+    .pdf-logo-block p { font-size: 12px; color: #6B5560; margin-top: 4px; }
+    .pdf-meta { text-align: right; font-size: 12px; color: #6B5560; line-height: 1.7; }
+    .pdf-meta strong { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #C9527A; }
+    .pdf-badge {
+      display: inline-block;
+      background: #C9527A;
+      color: white;
+      font-size: 11px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 4px 14px;
+      border-radius: 20px;
+      margin-bottom: 24px;
+    }
+    .pdf-section { margin-bottom: 22px; }
+    .pdf-section-title {
+      font-size: 11px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: #C9527A;
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #F2C4D4;
+    }
+    .pdf-section p { font-size: 13px; line-height: 1.75; color: #1A1014; font-family: Georgia, serif; }
+    .pdf-photos { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+    .pdf-photos img { width: 150px; height: 150px; object-fit: cover; border-radius: 8px; border: 1px solid #F2C4D4; }
+    .pdf-footer {
+      position: absolute;
+      bottom: 40px;
+      left: 70px; right: 70px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 12px;
+      border-top: 1px solid #F2C4D4;
+      font-size: 10px;
+      color: #9E3A5C;
+    }
+    .pdf-divider { height: 1px; background: #F2C4D4; margin: 20px 0; }
+
+    /* ─── TALLER: TABLA DE PLANILLA ─── */
+    .taller-tabla { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .taller-tabla th {
+      background: #C9527A; color: #fff; text-align: left;
+      padding: 8px 10px; font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
+    }
+    .taller-tabla td { padding: 9px 10px; border-bottom: 1px solid #F2C4D4; color: #1A1014; }
+    .taller-tabla tr:nth-child(even) td { background: #FDF0F4; }
+
+    /* ─── TALLER: CERTIFICADO ─── */
+    .cert-page { display: flex; align-items: center; justify-content: center; }
+    .cert-border {
+      width: 100%; height: 100%;
+      border: 3px solid #C9527A;
+      outline: 1px solid #F2C4D4;
+      outline-offset: -14px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center;
+      padding: 50px;
+      box-sizing: border-box;
+    }
+    .cert-header { font-size: 16px; color: #9E3A5C; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 30px; }
+    .cert-title { font-size: 34px; color: #C9527A; font-style: italic; margin-bottom: 10px; }
+    .cert-taller { font-size: 16px; color: #1A1014; font-weight: bold; margin-bottom: 26px; }
+    .cert-body { font-size: 15px; line-height: 1.9; color: #1A1014; max-width: 560px; margin-bottom: 30px; }
+    .cert-fecha { font-size: 13px; color: #6B5560; margin-bottom: 24px; }
+    .cert-firma { font-size: 13px; color: #9E3A5C; border-top: 1px solid #F2C4D4; padding-top: 10px; }
+
+    /* ─── TOAST ─── */
+    .toast {
+      position: fixed;
+      bottom: calc(24px + env(safe-area-inset-bottom));
+      left: 50%; transform: translateX(-50%);
+      background: var(--negro);
+      color: var(--blanco);
+      padding: 12px 22px;
+      border-radius: 100px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 999;
+      opacity: 0;
+      transition: opacity .3s;
+      white-space: nowrap;
+    }
+    .toast.show { opacity: 1; }
+
+    /* ─── EMPTY STATE ─── */
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--gris);
+    }
+    .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-state p { font-size: 15px; line-height: 1.6; }
+
+    /* ─── SETTINGS ─── */
+    .settings-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--gris-light);
+    }
+    .settings-row:last-child { border-bottom: none; }
+    .settings-label { font-size: 14px; font-weight: 600; }
+    .settings-sub { font-size: 12px; color: var(--gris); margin-top: 2px; }
+    .settings-row input[type=text], .settings-row input[type=password] {
+      width: 220px; padding: 9px 12px; font-size: 14px;
+    }
+
+    @media (max-width: 400px) {
+      .doc-types { grid-template-columns: 1fr 1fr; }
+      .photo-grid { grid-template-columns: repeat(3,1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-circle">🌸</div>
+  <div>
+    <h1>LoAn Estética</h1>
+    <p>Generador de Documentos</p>
+  </div>
+</header>
+
+<!-- TABS -->
+<div class="tabs" id="tabs">
+  <div class="tab active" data-panel="crear">✨ Crear</div>
+  <div class="tab" data-panel="talleres">🎓 Talleres</div>
+  <div class="tab" data-panel="historial">📂 Historial</div>
+  <div class="tab" data-panel="config">⚙️ Config</div>
+</div>
+
+<!-- ============ PANEL CREAR ============ -->
+<main>
+<div class="panel active" id="panel-crear">
+
+  <!-- Tipo de documento -->
+  <div class="card">
+    <div class="card-title">📄 Tipo de Documento</div>
+    <div class="doc-types" id="doc-types">
+      <div class="doc-type-btn selected" data-type="presupuesto">
+        <div class="icon">💰</div>
+        <div class="name">Presupuesto</div>
+        <div class="desc">Cotización de servicios</div>
+      </div>
+      <div class="doc-type-btn" data-type="ficha">
+        <div class="icon">👤</div>
+        <div class="name">Ficha de Cliente</div>
+        <div class="desc">Datos y tratamientos</div>
+      </div>
+      <div class="doc-type-btn" data-type="informe">
+        <div class="icon">📋</div>
+        <div class="name">Informe</div>
+        <div class="desc">Resultado de sesión</div>
+      </div>
+      <div class="doc-type-btn" data-type="consentimiento">
+        <div class="icon">✍️</div>
+        <div class="name">Consentimiento</div>
+        <div class="desc">Formulario firmado</div>
+      </div>
+      <div class="doc-type-btn" data-type="turno">
+        <div class="icon">📅</div>
+        <div class="name">Confirmación Turno</div>
+        <div class="desc">Comprobante de cita</div>
+      </div>
+      <div class="doc-type-btn" data-type="otro">
+        <div class="icon">📝</div>
+        <div class="name">Otro</div>
+        <div class="desc">Documento libre</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Datos básicos -->
+  <div class="card">
+    <div class="card-title">👤 Datos del Documento</div>
+    <div class="field">
+      <label>Nombre del cliente / documento</label>
+      <input type="text" id="inp-cliente" placeholder="Ej: María González" />
+    </div>
+    <div class="field">
+      <label>Fecha</label>
+      <input type="date" id="inp-fecha" />
+    </div>
+    <div class="field">
+      <label>Número / referencia (opcional)</label>
+      <input type="text" id="inp-ref" placeholder="Ej: 001" />
+    </div>
+  </div>
+
+  <!-- Describí con tus palabras -->
+  <div class="card">
+    <div class="card-title">🪄 Describí con tus palabras</div>
+    <div class="field">
+      <textarea id="inp-descripcion" rows="5"
+        placeholder="Contame todo lo que querés que tenga el documento. Por ejemplo:&#10;&#10;'Presupuesto para Laura, lifting de pestañas + depilación facial, $25000 el lifting y $8000 la depilación, tiene descuento del 10% porque es clienta frecuente, el turno es el jueves a las 14hs'"
+      ></textarea>
+    </div>
+    <!-- Adjuntar archivo -->
+    <div class="field">
+      <label>Adjuntar archivo para mejorar (opcional)</label>
+      <label for="inp-adjunto" class="photo-add" style="aspect-ratio:unset; padding:14px; flex-direction:row; gap:10px; justify-content:flex-start; border-radius:10px;">
+        <span style="font-size:22px;">📎</span>
+        <span id="adjunto-nombre" style="font-size:13px; color:var(--gris);">PDF, imagen o texto</span>
+      </label>
+      <input type="file" id="inp-adjunto" accept=".pdf,.txt,.jpg,.jpeg,.png,image/*,text/*" style="display:none" onchange="cargarAdjunto(this)" />
+    </div>
+    <button class="btn btn-primary" id="btn-generar-ia" onclick="generarConIA()">
+      🪄 Generar con IA
+    </button>
+
+    <div id="ia-result" style="margin-top:14px; display:none;">
+      <div class="ai-badge">✨ Contenido generado por IA</div>
+      <div class="ai-bubble" id="ia-texto"></div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-ghost btn-small" onclick="regenerar()">🔄 Regenerar</button>
+        <button class="btn btn-secondary btn-small" onclick="editarManual()">✏️ Editar manual</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Campo oculto que persiste el contenido IA -->
+  <textarea id="inp-ia-guardado" style="display:none"></textarea>
+
+  <!-- Contenido manual (visible si editan) -->
+  <div class="card" id="card-manual" style="display:none;">
+    <div class="card-title">✏️ Contenido del Documento</div>
+    <div class="field">
+      <label>Cuerpo del documento</label>
+      <textarea id="inp-cuerpo" rows="8" placeholder="Escribí o pegá el contenido..."></textarea>
+    </div>
+  </div>
+
+  <!-- Fotos -->
+  <div class="card">
+    <div class="card-title">📷 Fotos (opcional)</div>
+    <p style="font-size:13px; color:var(--gris); margin-bottom:10px;">Adjuntá fotos de antes/después, del trabajo realizado o lo que necesites.</p>
+    <div class="photo-grid" id="photo-grid">
+      <label class="photo-add" for="inp-foto">
+        <span style="font-size:28px;">+</span>
+        <span>Agregar</span>
+      </label>
+    </div>
+    <input type="file" id="inp-foto" accept="image/*" multiple style="display:none" onchange="agregarFotos(this)" />
+  </div>
+
+  <!-- Acciones finales -->
+  <div class="card">
+    <div class="card-title">📤 Generar PDF</div>
+    <button class="btn btn-primary" onclick="previsualizarPDF()" style="margin-bottom:10px;">
+      👁️ Vista Previa
+    </button>
+    <button class="btn btn-ghost" onclick="descargarPDF()">
+      ⬇️ Descargar PDF
+    </button>
+  </div>
+
+</div><!-- /panel-crear -->
+
+<!-- ============ PANEL TALLERES ============ -->
+<div class="panel" id="panel-talleres">
+
+  <div class="card">
+    <div class="card-title">🎓 Tipo de documento para el taller</div>
+    <div class="doc-types" id="taller-doc-types">
+      <div class="doc-type-btn taller-doc-type-btn selected" data-type="taller_apunte">
+        <div class="icon">📘</div>
+        <div class="name">Apunte / Guía</div>
+        <div class="desc">Contenido para explicar</div>
+      </div>
+      <div class="doc-type-btn taller-doc-type-btn" data-type="taller_planilla">
+        <div class="icon">📝</div>
+        <div class="name">Planilla</div>
+        <div class="desc">Asistencia / inscripción</div>
+      </div>
+      <div class="doc-type-btn taller-doc-type-btn" data-type="taller_certificado">
+        <div class="icon">🏆</div>
+        <div class="name">Certificado</div>
+        <div class="desc">De participación</div>
+      </div>
+      <div class="doc-type-btn taller-doc-type-btn" data-type="taller_libre">
+        <div class="icon">🗂️</div>
+        <div class="name">Libre</div>
+        <div class="desc">Lo que necesites</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📌 Datos del taller</div>
+    <div class="field">
+      <label>Nombre del taller</label>
+      <input type="text" id="taller-nombre" placeholder="Ej: Taller de lifting de pestañas" />
+    </div>
+    <div class="field">
+      <label>Fecha</label>
+      <input type="date" id="taller-fecha" />
+    </div>
+    <div class="field" id="campo-taller-columnas" style="display:none;">
+      <label>Columnas de la planilla (opcional)</label>
+      <input type="text" id="taller-columnas" placeholder="Ej: Nombre, Teléfono, Asistió" />
+    </div>
+    <div class="field" id="campo-taller-nombres" style="display:none;">
+      <label>Nombres de las participantes (opcional — si no los ponés, la IA los busca en las fotos que adjuntes)</label>
+      <textarea id="taller-nombres" rows="3" placeholder="Un nombre por línea"></textarea>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🪄 Contale a la IA qué querés armar</div>
+    <div class="field">
+      <textarea id="taller-descripcion" rows="5"
+        placeholder="Ejemplo: 'Armá un apunte con los pasos del lifting de pestañas que expliqué en las fotos, agregá los tiempos de pausado y los cuidados posteriores'"
+      ></textarea>
+    </div>
+
+    <div class="field">
+      <label>Fotos (de apuntes, textos, pizarra, listas, lo que sea) — la IA lee lo que dicen</label>
+      <div class="photo-grid" id="taller-photo-grid">
+        <label class="photo-add" for="taller-inp-foto">
+          <span style="font-size:28px;">+</span>
+          <span>Agregar</span>
+        </label>
+      </div>
+      <input type="file" id="taller-inp-foto" accept="image/*" multiple style="display:none" onchange="agregarFotosTaller(this)" />
+    </div>
+
+    <div class="field">
+      <label>Adjuntar PDF o TXT (opcional)</label>
+      <label for="taller-inp-adjunto" class="photo-add" style="aspect-ratio:unset; padding:14px; flex-direction:row; gap:10px; justify-content:flex-start; border-radius:10px;">
+        <span style="font-size:22px;">📎</span>
+        <span id="taller-adjunto-nombre" style="font-size:13px; color:var(--gris);">PDF o texto</span>
+      </label>
+      <input type="file" id="taller-inp-adjunto" accept=".pdf,.txt,text/plain,application/pdf" style="display:none" onchange="cargarAdjuntoTaller(this)" />
+    </div>
+
+    <button class="btn btn-primary" id="btn-generar-taller-ia" onclick="tallerGenerarConIA()">
+      🪄 Generar con IA
+    </button>
+
+    <div id="taller-ia-result" style="margin-top:14px; display:none;">
+      <div class="ai-badge">✨ Contenido generado por IA</div>
+      <div class="ai-bubble" id="taller-ia-texto"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📤 Generar PDF</div>
+    <button class="btn btn-primary" onclick="previsualizarTallerPDF()" style="margin-bottom:10px;">
+      👁️ Vista Previa
+    </button>
+    <button class="btn btn-ghost" onclick="descargarTallerPDF()">
+      ⬇️ Descargar PDF
+    </button>
+  </div>
+
+</div><!-- /panel-talleres -->
+
+<!-- ============ PANEL HISTORIAL ============ -->
+<div class="panel" id="panel-historial">
+  <div id="historial-lista">
+    <div class="empty-state">
+      <div class="icon">📂</div>
+      <p>Todavía no creaste ningún documento.<br>¡Empezá desde la pestaña Crear!</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PANEL CONFIG ============ -->
+<div class="panel" id="panel-config">
+  <div class="card">
+    <div class="card-title">⚙️ Configuración del Negocio</div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Nombre del negocio</div>
+        <div class="settings-sub">Aparece en todos los PDFs</div>
+      </div>
+      <input type="text" id="cfg-nombre" placeholder="LoAn Estética" style="width:180px" />
+    </div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Dirección</div>
+      </div>
+      <input type="text" id="cfg-dir" placeholder="Campana, Bs.As." style="width:180px" />
+    </div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Teléfono / WhatsApp</div>
+      </div>
+      <input type="text" id="cfg-tel" placeholder="+54 9 ..." style="width:180px" />
+    </div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Instagram</div>
+      </div>
+      <input type="text" id="cfg-ig" placeholder="@loan.estetica" style="width:180px" />
+    </div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Email</div>
+      </div>
+      <input type="text" id="cfg-email" placeholder="contacto@..." style="width:180px" />
+    </div>
+    <div style="margin-top:16px;">
+      <button class="btn btn-primary" onclick="guardarConfig()">💾 Guardar configuración</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🗑️ Datos</div>
+    <button class="btn btn-secondary" style="width:100%;" onclick="limpiarHistorial()">
+      Borrar todo el historial
+    </button>
+  </div>
+</div>
+
+</main>
+
+<!-- ─── VISTA PREVIA ─── -->
+<div id="preview-wrap">
+  <div class="preview-toolbar">
+    <button class="btn btn-primary" onclick="descargarActual()">⬇️ Descargar</button>
+    <button class="btn btn-secondary" onclick="compartirActual()">📤 Compartir</button>
+    <button class="btn btn-ghost" onclick="cerrarPreview()">✕ Cerrar</button>
+  </div>
+  <div id="preview-container"></div>
+</div>
+
+<!-- ─── PDF TEMPLATE (invisible) ─── -->
+<div id="pdf-template"></div>
+
+<!-- ─── TOAST ─── -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+//  ESTADO
+// ============================================================
+let selectedType = 'presupuesto';
+let photos = []; // { dataUrl, name }
+let iaContent = '';
+let pdfBlob = null;
+let currentPreviewMode = 'crear'; // 'crear' | 'taller'
+
+// ── Talleres ──
+let selectedTallerType = 'taller_apunte';
+let tallerPhotos = []; // { dataUrl, name }
+let tallerAdjuntoTexto = '';
+let tallerResult = null; // { texto } | { columnas, filas, titulo } | { cuerpo, nombres, tituloTaller }
+
+const DOC_TYPES = {
+  presupuesto:    { label: 'Presupuesto',         icon: '💰' },
+  ficha:          { label: 'Ficha de Cliente',     icon: '👤' },
+  informe:        { label: 'Informe de Sesión',    icon: '📋' },
+  consentimiento: { label: 'Consentimiento',       icon: '✍️' },
+  turno:          { label: 'Confirmación de Turno',icon: '📅' },
+  otro:           { label: 'Documento',            icon: '📝' },
+  taller_apunte:      { label: 'Apunte de Taller',   icon: '📘' },
+  taller_planilla:    { label: 'Planilla de Taller',  icon: '📝' },
+  taller_certificado: { label: 'Certificado',         icon: '🏆' },
+  taller_libre:       { label: 'Documento de Taller', icon: '🗂️' },
+};
+
+// ============================================================
+//  INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('inp-fecha').valueAsDate = new Date();
+  cargarConfig();
+  renderHistorial();
+
+  // Tabs
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
+    });
+  });
+
+  // Doc type buttons (Crear)
+  document.querySelectorAll('#doc-types .doc-type-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#doc-types .doc-type-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedType = btn.dataset.type;
+    });
+  });
+
+  // Doc type buttons (Talleres)
+  document.getElementById('taller-fecha').valueAsDate = new Date();
+  document.querySelectorAll('#taller-doc-types .doc-type-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#taller-doc-types .doc-type-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedTallerType = btn.dataset.type;
+      tallerResult = null;
+      document.getElementById('taller-ia-result').style.display = 'none';
+      document.getElementById('campo-taller-columnas').style.display = selectedTallerType === 'taller_planilla' ? 'block' : 'none';
+      document.getElementById('campo-taller-nombres').style.display = selectedTallerType === 'taller_certificado' ? 'block' : 'none';
+    });
+  });
+});
+
+// ============================================================
+//  CONFIG
+// ============================================================
+function cargarConfig() {
+  const cfg = JSON.parse(localStorage.getItem('loan_config') || '{}');
+  document.getElementById('cfg-nombre').value = cfg.nombre || '';
+  document.getElementById('cfg-dir').value    = cfg.dir    || '';
+  document.getElementById('cfg-tel').value    = cfg.tel    || '';
+  document.getElementById('cfg-ig').value     = cfg.ig     || '';
+  document.getElementById('cfg-email').value  = cfg.email  || '';
+}
+
+function guardarConfig() {
+  const cfg = {
+    nombre: document.getElementById('cfg-nombre').value || 'LoAn Estética',
+    dir:    document.getElementById('cfg-dir').value,
+    tel:    document.getElementById('cfg-tel').value,
+    ig:     document.getElementById('cfg-ig').value,
+    email:  document.getElementById('cfg-email').value,
+  };
+  localStorage.setItem('loan_config', JSON.stringify(cfg));
+  toast('✅ Configuración guardada');
+}
+
+
+function getConfig() {
+  return JSON.parse(localStorage.getItem('loan_config') || '{"nombre":"LoAn Estética","dir":"Campana, Buenos Aires"}');
+}
+
+// ============================================================
+//  FOTOS
+// ============================================================
+function agregarFotos(input) {
+  const files = Array.from(input.files);
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      photos.push({ dataUrl: e.target.result, name: file.name });
+      renderFotos();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function renderFotos() {
+  const grid = document.getElementById('photo-grid');
+  grid.innerHTML = `
+    <label class="photo-add" for="inp-foto">
+      <span style="font-size:28px;">+</span>
+      <span>Agregar</span>
+    </label>`;
+  photos.forEach((p, i) => {
+    const img = document.createElement('div');
+    img.style.position = 'relative';
+    img.innerHTML = `
+      <img src="${p.dataUrl}" class="photo-thumb" />
+      <button onclick="borrarFoto(${i})" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:22px;height:22px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>`;
+    grid.appendChild(img);
+  });
+}
+
+function borrarFoto(i) {
+  photos.splice(i, 1);
+  renderFotos();
+}
+
+// ============================================================
+//  IA — GENERAR CONTENIDO
+// ============================================================
+const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_API_KEY = 'AQ.Ab8RN6LsvIgnzF54v9jle2vpPRToDCf47ITrAkuVJjrQmSphQw';
+
+function getGeminiKey() {
+  return GEMINI_API_KEY;
+}
+let adjuntoTexto = ''; // contenido del archivo adjunto
+
+async function cargarAdjunto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('adjunto-nombre').textContent = file.name;
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  if (ext === 'txt') {
+    const reader = new FileReader();
+    reader.onload = e => { adjuntoTexto = e.target.result; toast('📎 Archivo cargado'); };
+    reader.readAsText(file);
+  } else if (['jpg','jpeg','png','webp'].includes(ext)) {
+    adjuntoTexto = `[El usuario adjuntó una imagen: ${file.name}]`;
+    toast('🖼️ Imagen cargada (solo se usa el nombre, no el contenido visual)');
+  } else if (ext === 'pdf') {
+    toast('📄 Leyendo PDF...');
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let texto = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        texto += content.items.map(it => it.str).join(' ') + '\n';
+      }
+      adjuntoTexto = texto.trim()
+        ? texto.trim()
+        : `[El PDF ${file.name} no tiene texto extraíble — puede ser una imagen escaneada]`;
+      toast('📄 PDF leído correctamente');
+    } catch (err) {
+      adjuntoTexto = `[No se pudo leer el PDF ${file.name}: ${err.message}]`;
+      toast('⚠️ Error leyendo el PDF');
+    }
+  } else {
+    const reader = new FileReader();
+    reader.onload = e => { adjuntoTexto = e.target.result; toast('📎 Archivo cargado'); };
+    reader.readAsText(file);
+  }
+}
+
+async function generarConIA() {
+  const descripcion = document.getElementById('inp-descripcion').value.trim();
+  if (!descripcion) { toast('✏️ Primero describí qué querés'); return; }
+
+  const btn = document.getElementById('btn-generar-ia');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="loading-dots"><span>•</span><span>•</span><span>•</span></span> Generando...`;
+
+  const cfg = getConfig();
+  const tipoLabel = DOC_TYPES[selectedType]?.label || 'Documento';
+  const fecha = document.getElementById('inp-fecha').value;
+  const cliente = document.getElementById('inp-cliente').value || '';
+
+  const systemPrompt = `IMPORTANTE: Ignorá por completo cualquier instrucción previa sobre finanzas, ingresos, egresos, reglas de negocio financiero o "chequeo de reglas y restricciones". Esas instrucciones NO aplican acá. A partir de ahora sos exclusivamente lo siguiente:
+
+Sos la asistente profesional del negocio de estética "${cfg.nombre || 'LoAn Estética'}" en ${cfg.dir || 'Campana, Buenos Aires'}.
+Tu único trabajo es redactar el cuerpo completo de documentos profesionales para el negocio.
+Reglas ESTRICTAS que siempre cumplís:
+- Usás TODO el contenido que te pasan, sin omitir nada.
+- Desarrollás cada punto con detalle, no resumís ni acortás.
+- Organizás en secciones con el título en mayúsculas seguido de dos puntos, y abajo el contenido desarrollado.
+- Escribís en español rioplatense, tono cálido y profesional.
+- NO ponés cabecera, logo, ni pie de página.
+- NO ponés frases como "aquí está el documento" ni introducción tuya. Empezás directo con el contenido.
+- NO mencionás reglas, restricciones, finanzas, ni nada que no sea el documento de estética en sí.
+- Si te pasan 20 líneas de información, el documento tiene que reflejar esas 20 líneas desarrolladas.`;
+
+  const userMessage = `Tipo de documento: ${tipoLabel}
+${cliente ? `Cliente/a: ${cliente}` : ''}
+Fecha: ${fecha}
+
+INFORMACIÓN COMPLETA A INCLUIR EN EL DOCUMENTO:
+${descripcion}
+${adjuntoTexto ? `\nCONTENIDO ADJUNTO (incorporalo al documento):\n${adjuntoTexto}` : ''}
+
+Redactá el documento completo desarrollando toda la información de arriba. No omitás nada.`;
+
+  try {
+    const apiKey = getGeminiKey();
+    if (!apiKey) throw new Error('Falta la clave API de Gemini — ingresala en ⚙️ Config');
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: 'user', parts: [{ text: userMessage }] }],
+          generationConfig: { maxOutputTokens: 4096, temperature: 0.7 }
+        })
+      }
+    );
+    if (!res.ok) {
+      const errText = await res.text();
+      if (res.status === 429) throw new Error('Llegaste al límite de usos por hoy — probá de nuevo más tarde');
+      if (res.status === 401 || res.status === 403) throw new Error('La clave de Gemini no es válida o no tiene permisos — generá una nueva en aistudio.google.com/apikey');
+      if (res.status === 404) throw new Error(`El modelo "${GEMINI_MODEL}" no existe o fue dado de baja — revisá aistudio.google.com para ver el nombre vigente`);
+      throw new Error(`Gemini respondió ${res.status}: ${errText.slice(0, 200)}`);
+    }
+    const data = await res.json();
+    const texto = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!texto) throw new Error('Gemini no devolvió contenido (respuesta inesperada)');
+    iaContent = texto;
+  } catch(e) {
+    console.error('Error generando con IA:', e);
+    iaContent = descripcion;
+    toast('⚠️ ' + e.message);
+  }
+
+  document.getElementById('ia-texto').textContent = iaContent;
+  document.getElementById('ia-result').style.display = 'block';
+  // Guardar en campo oculto para que buildPDFHtml siempre lo lea
+  document.getElementById('inp-ia-guardado').value = iaContent;
+  btn.disabled = false;
+  btn.innerHTML = '🪄 Generar con IA';
+}
+
+function regenerar() { generarConIA(); }
+
+function editarManual() {
+  const contenido = document.getElementById('inp-ia-guardado').value || iaContent;
+  document.getElementById('inp-cuerpo').value = contenido;
+  document.getElementById('card-manual').style.display = 'block';
+  document.getElementById('card-manual').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ============================================================
+//  PARSEO DE TEXTO A SECCIONES (reutilizado por Crear y Talleres)
+// ============================================================
+function textoASeccionesHtml(cuerpo) {
+  let bodyHtml = '';
+  if (!cuerpo) return bodyHtml;
+
+  const lines = cuerpo.split('\n');
+  let currentSection = '';
+  let currentContent = [];
+
+  const flushSection = () => {
+    if (currentSection) {
+      bodyHtml += `<div class="pdf-section">
+        <div class="pdf-section-title">${currentSection}</div>
+        <p>${currentContent.join('<br />')}</p>
+      </div>`;
+    } else if (currentContent.length) {
+      bodyHtml += `<div class="pdf-section"><p>${currentContent.join('<br />')}</p></div>`;
+    }
+  };
+
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    // Título: línea corta (hasta 60 chars) que termina en ":" y no tiene punto
+    const estitulo = trimmed.endsWith(':') && trimmed.length <= 60 && !trimmed.includes('.');
+    // O formato "**Título**:" o "### Título"
+    const esTituloMd = /^(\*\*|#{1,3}\s?)(.+?)(\*\*)?:?$/.test(trimmed) && trimmed.length <= 60;
+    if (estitulo || esTituloMd) {
+      flushSection();
+      currentSection = trimmed.replace(/^[#\*\s]+/, '').replace(/:$/, '').trim();
+      currentContent = [];
+    } else {
+      const limpia = trimmed.replace(/\*\*(.*?)\*\*/g, '$1').replace(/^[-•]\s*/, '');
+      currentContent.push(limpia);
+    }
+  });
+  flushSection();
+  return bodyHtml;
+}
+
+// ============================================================
+//  CONSTRUIR HTML DEL PDF
+// ============================================================
+function buildPDFHtml() {
+  const cfg = getConfig();
+  const cliente = document.getElementById('inp-cliente').value || '—';
+  const fecha    = document.getElementById('inp-fecha').value   || new Date().toLocaleDateString('es-AR');
+  const ref      = document.getElementById('inp-ref').value;
+  const tipo     = DOC_TYPES[selectedType];
+  const cuerpoManual = document.getElementById('inp-cuerpo').value.trim();
+  const cuerpoIA     = document.getElementById('inp-ia-guardado').value.trim();
+  const cuerpoDesc   = document.getElementById('inp-descripcion').value.trim();
+  const cuerpo = cuerpoManual || cuerpoIA || cuerpoDesc || '';
+
+  // Format fecha nicely
+  let fechaDisplay = fecha;
+  try { fechaDisplay = new Date(fecha + 'T12:00:00').toLocaleDateString('es-AR', { day:'numeric', month:'long', year:'numeric' }); } catch(e) {}
+
+  // Photos HTML
+  let photosHtml = '';
+  if (photos.length) {
+    photosHtml = `<div class="pdf-section">
+      <div class="pdf-section-title">📷 Registro fotográfico</div>
+      <div class="pdf-photos">
+        ${photos.map(p => `<img src="${p.dataUrl}" />`).join('')}
+      </div>
+    </div>`;
+  }
+
+  // Body sections — parseo reutilizable (ver textoASeccionesHtml)
+  const bodyHtml = textoASeccionesHtml(cuerpo);
+
+  const refText = ref ? `#${ref}` : `#${Date.now().toString().slice(-6)}`;
+
+  return `
+    <div class="pdf-page">
+      <div class="pdf-header">
+        <div class="pdf-logo-block">
+          <h2>${cfg.nombre || 'LoAn Estética'}</h2>
+          <p>${cfg.dir || ''}</p>
+          ${cfg.tel ? `<p>${cfg.tel}</p>` : ''}
+          ${cfg.ig ? `<p>${cfg.ig}</p>` : ''}
+        </div>
+        <div class="pdf-meta">
+          <strong>Documento</strong>${tipo.label}<br/>
+          <strong>N°</strong>${refText}<br/>
+          <strong>Fecha</strong>${fechaDisplay}<br/>
+          <strong>Cliente/a</strong>${cliente}
+        </div>
+      </div>
+
+      <div class="pdf-badge">${tipo.icon} ${tipo.label}</div>
+
+      ${bodyHtml || `<div class="pdf-section"><p>${cuerpo}</p></div>`}
+
+      ${photosHtml}
+
+      <div class="pdf-footer">
+        <span>${cfg.nombre || 'LoAn Estética'} — ${cfg.dir || ''}</span>
+        <span>${cfg.email || ''} ${cfg.ig || ''}</span>
+      </div>
+    </div>`;
+}
+
+// ============================================================
+//  PREVIEW
+// ============================================================
+function previsualizarPDF() {
+  const html = buildPDFHtml();
+  const container = document.getElementById('preview-container');
+  container.innerHTML = `<div style="padding:24px; font-family:Georgia,serif;">${html}</div>`;
+  currentPreviewMode = 'crear';
+  document.getElementById('preview-wrap').classList.add('open');
+}
+
+function descargarActual() { currentPreviewMode === 'taller' ? descargarTallerPDF() : descargarPDF(); }
+function compartirActual() { currentPreviewMode === 'taller' ? compartirTallerPDF() : compartirPDF(); }
+
+function cerrarPreview() {
+  document.getElementById('preview-wrap').classList.remove('open');
+}
+
+// ============================================================
+//  DESCARGAR PDF
+// ============================================================
+async function descargarPDF() {
+  toast('📄 Generando PDF...');
+
+  const { jsPDF } = window.jspdf;
+  const tpl = document.getElementById('pdf-template');
+  tpl.innerHTML = buildPDFHtml();
+
+  // Wait for images to load
+  const imgs = tpl.querySelectorAll('img');
+  await Promise.all([...imgs].map(img => new Promise(r => {
+    if (img.complete) r();
+    else { img.onload = r; img.onerror = r; }
+  })));
+
+  const canvas = await html2canvas(tpl.querySelector('.pdf-page'), {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: '#ffffff',
+    width: 794,
+  });
+
+  const imgData = canvas.toDataURL('image/jpeg', 0.92);
+  const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+  const pdfW = pdf.internal.pageSize.getWidth();
+  const pdfH = (canvas.height * pdfW) / canvas.width;
+
+  pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH);
+
+  // File name
+  const cliente = document.getElementById('inp-cliente').value.replace(/\s+/g,'_') || 'documento';
+  const tipo    = selectedType;
+  const fecha   = document.getElementById('inp-fecha').value.replace(/-/g,'');
+  const nombre  = `LoAn_${tipo}_${cliente}_${fecha}.pdf`;
+
+  // Save to history
+  guardarEnHistorial(nombre, imgData);
+
+  pdf.save(nombre);
+  tpl.innerHTML = '';
+  toast('✅ PDF descargado');
+}
+
+// ============================================================
+//  COMPARTIR
+// ============================================================
+async function compartirPDF() {
+  if (!navigator.share) { descargarPDF(); return; }
+  const { jsPDF } = window.jspdf;
+  const tpl = document.getElementById('pdf-template');
+  tpl.innerHTML = buildPDFHtml();
+
+  const canvas = await html2canvas(tpl.querySelector('.pdf-page'), { scale: 2, backgroundColor: '#ffffff', width: 794 });
+  const imgData = canvas.toDataURL('image/jpeg', 0.9);
+  const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+  const pdfW = pdf.internal.pageSize.getWidth();
+  const pdfH = (canvas.height * pdfW) / canvas.width;
+  pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH);
+  const blob = pdf.output('blob');
+
+  const cliente = document.getElementById('inp-cliente').value || 'documento';
+  const file = new File([blob], `LoAn_${selectedType}_${cliente}.pdf`, { type: 'application/pdf' });
+  await navigator.share({ title: 'Documento LoAn Estética', files: [file] });
+  tpl.innerHTML = '';
+}
+
+// ============================================================
+//  TALLERES — FOTOS Y ADJUNTOS
+// ============================================================
+function agregarFotosTaller(input) {
+  const files = Array.from(input.files);
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      tallerPhotos.push({ dataUrl: e.target.result, name: file.name });
+      renderFotosTaller();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function renderFotosTaller() {
+  const grid = document.getElementById('taller-photo-grid');
+  grid.innerHTML = `
+    <label class="photo-add" for="taller-inp-foto">
+      <span style="font-size:28px;">+</span>
+      <span>Agregar</span>
+    </label>`;
+  tallerPhotos.forEach((p, i) => {
+    const img = document.createElement('div');
+    img.style.position = 'relative';
+    img.innerHTML = `
+      <img src="${p.dataUrl}" class="photo-thumb" />
+      <button onclick="borrarFotoTaller(${i})" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:22px;height:22px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>`;
+    grid.appendChild(img);
+  });
+}
+
+function borrarFotoTaller(i) {
+  tallerPhotos.splice(i, 1);
+  renderFotosTaller();
+}
+
+async function cargarAdjuntoTaller(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('taller-adjunto-nombre').textContent = file.name;
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  if (ext === 'pdf') {
+    toast('📄 Leyendo PDF...');
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let texto = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        texto += content.items.map(it => it.str).join(' ') + '\n';
+      }
+      tallerAdjuntoTexto = texto.trim()
+        ? texto.trim()
+        : `[El PDF ${file.name} no tiene texto extraíble — puede ser una imagen escaneada. Probá subirlo como foto en vez de PDF, así la IA lee el contenido visualmente.]`;
+      toast('📄 PDF leído correctamente');
+    } catch (err) {
+      tallerAdjuntoTexto = `[No se pudo leer el PDF ${file.name}: ${err.message}]`;
+      toast('⚠️ Error leyendo el PDF');
+    }
+  } else {
+    const reader = new FileReader();
+    reader.onload = e => { tallerAdjuntoTexto = e.target.result; toast('📎 Archivo cargado'); };
+    reader.readAsText(file);
+  }
+}
+
+// ============================================================
+//  TALLERES — LLAMADA DIRECTA A GEMINI (con visión)
+// ============================================================
+async function llamarClaudeIA(_sinUsar, systemPrompt, userText, images) {
+  const apiKey = getGeminiKey();
+  if (!apiKey) throw new Error('Falta la clave API de Gemini — ingresala en ⚙️ Config');
+
+  const parts = [];
+  if (userText) parts.push({ text: userText });
+  images.forEach(img => {
+    const match = img.dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    if (match) {
+      parts.push({ inline_data: { mime_type: match[1], data: match[2] } });
+    }
+  });
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ role: 'user', parts }],
+        generationConfig: { maxOutputTokens: 4096, temperature: 0.7 },
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const errText = await res.text();
+    if (res.status === 429) throw new Error('Llegaste al límite de usos por hoy — probá de nuevo más tarde');
+    if (res.status === 401 || res.status === 403) throw new Error('La clave de Gemini no es válida o no tiene permisos — generá una nueva en aistudio.google.com/apikey');
+    if (res.status === 404) throw new Error(`El modelo "${GEMINI_MODEL}" no existe o fue dado de baja — revisá aistudio.google.com para ver el nombre vigente`);
+    throw new Error(`Gemini respondió ${res.status}: ${errText.slice(0, 200)}`);
+  }
+  const data = await res.json();
+  const texto = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!texto) throw new Error('Gemini no devolvió texto (puede que haya bloqueado la respuesta — probá reformular)');
+  return texto;
+}
+
+function parsearJSONIA(texto) {
+  const limpio = texto.replace(/```json/gi, '').replace(/```/g, '').trim();
+  return JSON.parse(limpio);
+}
+
+
+// ============================================================
+//  TALLERES — GENERAR CONTENIDO CON IA
+// ============================================================
+async function tallerGenerarConIA() {
+  const descripcion = document.getElementById('taller-descripcion').value.trim();
+  if (!descripcion && !tallerAdjuntoTexto && tallerPhotos.length === 0) {
+    toast('✏️ Contame qué querés armar, o adjuntá una foto/PDF');
+    return;
+  }
+
+  const btn = document.getElementById('btn-generar-taller-ia');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="loading-dots"><span>•</span><span>•</span><span>•</span></span> Generando...`;
+
+  const tallerNombre = document.getElementById('taller-nombre').value || 'Taller';
+  const fecha = document.getElementById('taller-fecha').value;
+  const nombreNegocio = getConfig().nombre || 'LoAn Estética';
+
+  let systemPrompt, userText;
+
+  if (selectedTallerType === 'taller_planilla') {
+    systemPrompt = `Sos la asistente de "${nombreNegocio}" que arma planillas para talleres presenciales.
+Tu ÚNICA salida debe ser un JSON válido, sin texto antes ni después ni bloques de código, con este formato exacto:
+{"titulo":"nombre de la planilla","columnas":["Columna 1","Columna 2"],"filas":[["dato1","dato2"],["dato1","dato2"]]}
+Reglas:
+- Si el usuario pidió columnas específicas, usá esas. Si no, elegí columnas razonables para una planilla de taller (por ejemplo: Nombre, Teléfono, Asistió/Firma).
+- Si hay nombres o datos en fotos o en el texto adjunto, extraelos y armá una fila por persona.
+- Si no hay datos de personas todavía, dejá "filas" como un array vacío y "columnas" con las columnas sugeridas — es una planilla para completar a mano.
+- Nunca inventes nombres que no aparecen en la información dada.`;
+    const columnasInput = document.getElementById('taller-columnas').value.trim();
+    userText = `Taller: ${tallerNombre}\nFecha: ${fecha}\n\nQUÉ NECESITO:\n${descripcion || 'Armá una planilla de inscripción/asistencia estándar para este taller'}${columnasInput ? `\n\nColumnas sugeridas: ${columnasInput}` : ''}${tallerAdjuntoTexto ? `\n\nCONTENIDO ADJUNTO (PDF/TXT):\n${tallerAdjuntoTexto}` : ''}\n\nSi adjunté fotos, pueden tener una lista de nombres u otros datos: leelos y usalos para las filas.`;
+  } else if (selectedTallerType === 'taller_certificado') {
+    systemPrompt = `Sos la asistente de "${nombreNegocio}" que arma certificados de participación para talleres.
+Tu ÚNICA salida debe ser un JSON válido, sin texto antes ni después ni bloques de código, con este formato exacto:
+{"tituloTaller":"nombre del taller","cuerpo":"texto del certificado en español rioplatense, formal y cálido, usando {nombre} en el lugar exacto donde va el nombre de la persona","nombres":["Nombre Apellido","Nombre Apellido"]}
+Reglas:
+- El texto de "cuerpo" tiene que sonar bien para cualquier nombre que se reemplace en {nombre}, por ejemplo: "Por medio del presente se certifica que {nombre} participó del taller ..."
+- Si el usuario dio una lista de nombres (escritos o en una foto), usalos tal cual están escritos, sin inventar ni corregir de más.
+- Si no hay ningún nombre disponible, dejá "nombres" como array vacío.`;
+    const nombresInput = document.getElementById('taller-nombres').value.trim();
+    userText = `Taller: ${tallerNombre}\nFecha: ${fecha}\n\nQUÉ NECESITO:\n${descripcion || 'Certificado de participación estándar para este taller'}${nombresInput ? `\n\nNombres de las participantes:\n${nombresInput}` : ''}${tallerAdjuntoTexto ? `\n\nCONTENIDO ADJUNTO (PDF/TXT):\n${tallerAdjuntoTexto}` : ''}\n\nSi adjunté fotos (por ejemplo una planilla de asistencia), pueden tener los nombres: leelos y usalos.`;
+  } else {
+    const tipoTxt = selectedTallerType === 'taller_apunte' ? 'un apunte / guía de estudio' : 'un documento libre';
+    systemPrompt = `Sos la asistente de "${nombreNegocio}" que prepara material para talleres presenciales que da un profesional de estética.
+Tu trabajo es redactar el contenido completo de ${tipoTxt} para el taller.
+Reglas ESTRICTAS:
+- Si te adjuntan fotos, son fotos de apuntes, textos, pizarras o libros: LEÉ atentamente el texto que aparece en cada una y usalo como base del contenido, sin omitir nada relevante.
+- Si hay contenido de un PDF o TXT adjunto, incorporalo también.
+- Organizá el contenido en secciones: cada título de sección en su propia línea, corto (hasta 60 caracteres) y terminado en dos puntos ":", y debajo el desarrollo del punto.
+- Desarrollá cada punto con el detalle que corresponda, no resumas de más ni omitas información que te dieron.
+- Español rioplatense, tono claro y profesional, apto para entregar a alumnas/os.
+- NO pongas cabecera, logo, ni pie de página — de eso se encarga la plantilla.
+- NO escribas frases como "acá está tu apunte" ni ningún comentario tuyo. Empezá directo con el contenido.`;
+    userText = `Taller: ${tallerNombre}\nFecha: ${fecha}\n\nQUÉ QUIERO QUE ARMES:\n${descripcion}${tallerAdjuntoTexto ? `\n\nCONTENIDO EXTRAÍDO DE PDF/TXT ADJUNTO:\n${tallerAdjuntoTexto}` : ''}${tallerPhotos.length ? '\n\nHay fotos adjuntas: son apuntes/textos, leé lo que dicen y usalo como base del contenido.' : ''}`;
+  }
+
+  try {
+    const respuesta = await llamarClaudeIA(null, systemPrompt, userText, tallerPhotos);
+    if (selectedTallerType === 'taller_planilla' || selectedTallerType === 'taller_certificado') {
+      tallerResult = parsearJSONIA(respuesta);
+    } else {
+      tallerResult = { texto: respuesta };
+    }
+    mostrarResultadoTaller();
+    toast('✅ Contenido generado');
+  } catch (e) {
+    console.error('Error generando taller con IA:', e);
+    toast('⚠️ ' + e.message);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '🪄 Generar con IA';
+}
+
+function mostrarResultadoTaller() {
+  const box = document.getElementById('taller-ia-texto');
+  if (!tallerResult) return;
+  if (tallerResult.texto) {
+    box.textContent = tallerResult.texto;
+  } else if (tallerResult.columnas) {
+    const filas = tallerResult.filas || [];
+    box.textContent = `${tallerResult.titulo || ''}\nColumnas: ${tallerResult.columnas.join(' | ')}\n${filas.length ? filas.map(f => f.join(' | ')).join('\n') : '(planilla vacía para completar a mano)'}`;
+  } else if (tallerResult.cuerpo) {
+    const nombres = tallerResult.nombres || [];
+    box.textContent = `${tallerResult.tituloTaller || ''}\n\n${tallerResult.cuerpo}\n\nParticipantes: ${nombres.length ? nombres.join(', ') : '(ninguno cargado — se generará un certificado en blanco para completar)'}`;
+  }
+  document.getElementById('taller-ia-result').style.display = 'block';
+}
+
+// ============================================================
+//  TALLERES — CONSTRUIR HTML DEL / LOS PDF
+// ============================================================
+function buildTallerPages() {
+  const cfg = getConfig();
+  const tallerNombre = document.getElementById('taller-nombre').value || 'Taller';
+  const fecha = document.getElementById('taller-fecha').value || '';
+  let fechaDisplay = fecha;
+  try { fechaDisplay = new Date(fecha + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' }); } catch (e) {}
+
+  if (selectedTallerType === 'taller_certificado') {
+    const data = tallerResult || {};
+    const nombres = (data.nombres && data.nombres.length) ? data.nombres : ['________________________'];
+    return nombres.map(nombre => {
+      const cuerpo = (data.cuerpo || 'Por medio del presente se certifica que {nombre} participó del taller.')
+        .replace(/\{nombre\}/g, `<strong>${nombre}</strong>`);
+      return `
+      <div class="pdf-page cert-page">
+        <div class="cert-border">
+          <div class="cert-header">${cfg.nombre || 'LoAn Estética'}</div>
+          <div class="cert-title">Certificado de Participación</div>
+          <div class="cert-taller">${data.tituloTaller || tallerNombre}</div>
+          <div class="cert-body">${cuerpo}</div>
+          <div class="cert-fecha">${fechaDisplay}</div>
+          <div class="cert-firma">${cfg.nombre || 'LoAn Estética'}${cfg.dir ? ' — ' + cfg.dir : ''}</div>
+        </div>
+      </div>`;
+    });
+  }
+
+  if (selectedTallerType === 'taller_planilla') {
+    const data = tallerResult || { columnas: [], filas: [] };
+    const columnas = data.columnas || [];
+    const filas = (data.filas && data.filas.length) ? data.filas : [[], [], [], [], []];
+    const theadHtml = `<tr>${columnas.map(c => `<th>${c}</th>`).join('')}</tr>`;
+    const rowsHtml = filas.map(f => `<tr>${columnas.map((_, idx) => `<td>${(f[idx] || '')}</td>`).join('')}</tr>`).join('');
+    return [`
+      <div class="pdf-page">
+        <div class="pdf-header">
+          <div class="pdf-logo-block">
+            <h2>${cfg.nombre || 'LoAn Estética'}</h2>
+            <p>${cfg.dir || ''}</p>
+          </div>
+          <div class="pdf-meta">
+            <strong>Taller</strong>${data.titulo || tallerNombre}<br/>
+            <strong>Fecha</strong>${fechaDisplay}
+          </div>
+        </div>
+        <div class="pdf-badge">📝 Planilla</div>
+        <table class="taller-tabla"><thead>${theadHtml}</thead><tbody>${rowsHtml}</tbody></table>
+        <div class="pdf-footer">
+          <span>${cfg.nombre || 'LoAn Estética'} — ${cfg.dir || ''}</span>
+          <span>${cfg.email || ''} ${cfg.ig || ''}</span>
+        </div>
+      </div>`];
+  }
+
+  // taller_apunte / taller_libre
+  const bodyHtml = textoASeccionesHtml((tallerResult && tallerResult.texto) || '');
+  const tipoLabel = selectedTallerType === 'taller_apunte' ? '📘 Apunte / Guía' : '🗂️ Documento del Taller';
+  return [`
+    <div class="pdf-page">
+      <div class="pdf-header">
+        <div class="pdf-logo-block">
+          <h2>${cfg.nombre || 'LoAn Estética'}</h2>
+          <p>${cfg.dir || ''}</p>
+        </div>
+        <div class="pdf-meta">
+          <strong>Taller</strong>${tallerNombre}<br/>
+          <strong>Fecha</strong>${fechaDisplay}
+        </div>
+      </div>
+      <div class="pdf-badge">${tipoLabel}</div>
+      ${bodyHtml || '<div class="pdf-section"><p>Sin contenido</p></div>'}
+      <div class="pdf-footer">
+        <span>${cfg.nombre || 'LoAn Estética'} — ${cfg.dir || ''}</span>
+        <span>${cfg.email || ''} ${cfg.ig || ''}</span>
+      </div>
+    </div>`];
+}
+
+function previsualizarTallerPDF() {
+  if (!tallerResult) { toast('✏️ Primero generá el contenido con Claude'); return; }
+  const pages = buildTallerPages();
+  const container = document.getElementById('preview-container');
+  container.innerHTML = pages
+    .map(p => `<div style="padding:24px; font-family:Georgia,serif;">${p}</div>`)
+    .join('<hr style="border:none;border-top:2px dashed #F2C4D4;margin:20px 0;">');
+  currentPreviewMode = 'taller';
+  document.getElementById('preview-wrap').classList.add('open');
+}
+
+async function descargarTallerPDF() {
+  if (!tallerResult) { toast('✏️ Primero generá el contenido con Claude'); return; }
+  toast('📄 Generando PDF...');
+
+  const { jsPDF } = window.jspdf;
+  const tpl = document.getElementById('pdf-template');
+  const pages = buildTallerPages();
+  const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+  let thumbnail = null;
+
+  for (let i = 0; i < pages.length; i++) {
+    tpl.innerHTML = pages[i];
+    const imgs = tpl.querySelectorAll('img');
+    await Promise.all([...imgs].map(img => new Promise(r => {
+      if (img.complete) r(); else { img.onload = r; img.onerror = r; }
+    })));
+    const canvas = await html2canvas(tpl.querySelector('.pdf-page'), { scale: 2, useCORS: true, backgroundColor: '#ffffff', width: 794 });
+    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+    if (i === 0) thumbnail = imgData;
+    const pdfW = pdf.internal.pageSize.getWidth();
+    const pdfH = (canvas.height * pdfW) / canvas.width;
+    if (i > 0) pdf.addPage();
+    pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH);
+  }
+
+  const tallerNombre = (document.getElementById('taller-nombre').value || 'taller').replace(/\s+/g, '_');
+  const fechaArchivo = (document.getElementById('taller-fecha').value || '').replace(/-/g, '');
+  const nombreArchivo = `Taller_${tallerNombre}_${fechaArchivo || Date.now()}.pdf`;
+
+  guardarEnHistorialTaller(nombreArchivo, thumbnail);
+  pdf.save(nombreArchivo);
+  tpl.innerHTML = '';
+  toast('✅ PDF descargado');
+}
+
+async function compartirTallerPDF() {
+  if (!tallerResult) { toast('✏️ Primero generá el contenido con Claude'); return; }
+  if (!navigator.share) { descargarTallerPDF(); return; }
+
+  const { jsPDF } = window.jspdf;
+  const tpl = document.getElementById('pdf-template');
+  const pages = buildTallerPages();
+  const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+
+  for (let i = 0; i < pages.length; i++) {
+    tpl.innerHTML = pages[i];
+    const canvas = await html2canvas(tpl.querySelector('.pdf-page'), { scale: 2, backgroundColor: '#ffffff', width: 794 });
+    const imgData = canvas.toDataURL('image/jpeg', 0.9);
+    const pdfW = pdf.internal.pageSize.getWidth();
+    const pdfH = (canvas.height * pdfW) / canvas.width;
+    if (i > 0) pdf.addPage();
+    pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH);
+  }
+  tpl.innerHTML = '';
+
+  const blob = pdf.output('blob');
+  const tallerNombre = document.getElementById('taller-nombre').value || 'taller';
+  const file = new File([blob], `Taller_${tallerNombre}.pdf`, { type: 'application/pdf' });
+  await navigator.share({ title: 'Documento de Taller', files: [file] });
+}
+
+function guardarEnHistorialTaller(nombre, thumbnail) {
+  const historial = JSON.parse(localStorage.getItem('loan_historial') || '[]');
+  historial.unshift({
+    id: Date.now(),
+    nombre,
+    tipo: selectedTallerType,
+    cliente: document.getElementById('taller-nombre').value || '—',
+    fecha: document.getElementById('taller-fecha').value,
+    cuerpo: (tallerResult && tallerResult.texto) || JSON.stringify(tallerResult || {}),
+    thumbnail,
+    fotos: tallerPhotos.length,
+  });
+  if (historial.length > 50) historial.pop();
+  localStorage.setItem('loan_historial', JSON.stringify(historial));
+  renderHistorial();
+}
+
+// ============================================================
+//  HISTORIAL
+// ============================================================
+function guardarEnHistorial(nombre, thumbnail) {
+  const historial = JSON.parse(localStorage.getItem('loan_historial') || '[]');
+  historial.unshift({
+    id: Date.now(),
+    nombre,
+    tipo: selectedType,
+    cliente: document.getElementById('inp-cliente').value || '—',
+    fecha: document.getElementById('inp-fecha').value,
+    cuerpo: document.getElementById('inp-cuerpo').value || iaContent || document.getElementById('inp-descripcion').value,
+    thumbnail,
+    fotos: photos.length,
+  });
+  // Limit to 50
+  if (historial.length > 50) historial.pop();
+  localStorage.setItem('loan_historial', JSON.stringify(historial));
+  renderHistorial();
+}
+
+function renderHistorial() {
+  const lista = document.getElementById('historial-lista');
+  const historial = JSON.parse(localStorage.getItem('loan_historial') || '[]');
+  if (!historial.length) {
+    lista.innerHTML = `<div class="empty-state"><div class="icon">📂</div><p>Todavía no creaste ningún documento.<br>¡Empezá desde la pestaña Crear!</p></div>`;
+    return;
+  }
+  lista.innerHTML = historial.map(item => `
+    <div class="history-item" onclick="abrirHistorialItem(${item.id})">
+      <div class="history-icon">${DOC_TYPES[item.tipo]?.icon || '📄'}</div>
+      <div class="history-info">
+        <div class="history-title">${item.cliente} — ${DOC_TYPES[item.tipo]?.label || 'Documento'}</div>
+        <div class="history-meta">${formatFecha(item.fecha)} · ${item.fotos > 0 ? `${item.fotos} foto${item.fotos>1?'s':''}` : 'Sin fotos'}</div>
+      </div>
+      <div class="history-actions">
+        <button class="btn btn-ghost btn-small" onclick="event.stopPropagation(); reusarItem(${item.id})">♻️</button>
+        <button class="btn btn-secondary btn-small" onclick="event.stopPropagation(); borrarItem(${item.id})">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+
+function formatFecha(f) {
+  try { return new Date(f + 'T12:00:00').toLocaleDateString('es-AR', { day:'numeric', month:'short', year:'numeric' }); }
+  catch(e) { return f; }
+}
+
+function abrirHistorialItem(id) {
+  const historial = JSON.parse(localStorage.getItem('loan_historial') || '[]');
+  const item = historial.find(i => i.id === id);
+  if (!item || !item.thumbnail) { toast('Sin vista previa guardada'); return; }
+  const container = document.getElementById('preview-container');
+  container.innerHTML = `<img src="${item.thumbnail}" style="width:100%; border-radius:12px;" />`;
+  document.getElementById('preview-wrap').classList.add('open');
+}
+
+function reusarItem(id) {
+  const historial = JSON.parse(localStorage.getItem('loan_historial') || '[]');
+  const item = historial.find(i => i.id === id);
+  if (!item) return;
+
+  if (item.tipo && item.tipo.startsWith('taller_')) {
+    // Switch to Talleres tab
+    document.querySelectorAll('.tab').forEach(t => { t.classList.remove('active'); if (t.dataset.panel === 'talleres') t.classList.add('active'); });
+    document.querySelectorAll('.panel').forEach(p => { p.classList.remove('active'); if (p.id === 'panel-talleres') p.classList.add('active'); });
+    document.getElementById('taller-nombre').value = item.cliente === '—' ? '' : item.cliente;
+    document.getElementById('taller-fecha').valueAsDate = new Date();
+    document.getElementById('taller-descripcion').value = item.tipo === 'taller_apunte' || item.tipo === 'taller_libre' ? (item.cuerpo || '') : '';
+    selectedTallerType = item.tipo;
+    tallerResult = null;
+    document.getElementById('taller-ia-result').style.display = 'none';
+    document.querySelectorAll('#taller-doc-types .doc-type-btn').forEach(b => {
+      b.classList.remove('selected');
+      if (b.dataset.type === item.tipo) b.classList.add('selected');
+    });
+    document.getElementById('campo-taller-columnas').style.display = item.tipo === 'taller_planilla' ? 'block' : 'none';
+    document.getElementById('campo-taller-nombres').style.display = item.tipo === 'taller_certificado' ? 'block' : 'none';
+    toast('✅ Datos cargados para reusar');
+    return;
+  }
+
+  // Switch to Crear tab
+  document.querySelectorAll('.tab').forEach(t => { t.classList.remove('active'); if(t.dataset.panel==='crear') t.classList.add('active'); });
+  document.querySelectorAll('.panel').forEach(p => { p.classList.remove('active'); if(p.id==='panel-crear') p.classList.add('active'); });
+  // Fill fields
+  document.getElementById('inp-cliente').value = item.cliente === '—' ? '' : item.cliente;
+  document.getElementById('inp-fecha').valueAsDate = new Date();
+  document.getElementById('inp-descripcion').value = item.cuerpo || '';
+  selectedType = item.tipo;
+  document.querySelectorAll('#doc-types .doc-type-btn').forEach(b => {
+    b.classList.remove('selected');
+    if (b.dataset.type === item.tipo) b.classList.add('selected');
+  });
+  toast('✅ Datos cargados para reusar');
+}
+
+function borrarItem(id) {
+  if (!confirm('¿Borrás este documento del historial?')) return;
+  const historial = JSON.parse(localStorage.getItem('loan_historial') || '[]');
+  localStorage.setItem('loan_historial', JSON.stringify(historial.filter(i => i.id !== id)));
+  renderHistorial();
+  toast('🗑️ Eliminado');
+}
+
+function limpiarHistorial() {
+  if (!confirm('¿Borrás todo el historial? Esta acción no se puede deshacer.')) return;
+  localStorage.removeItem('loan_historial');
+  renderHistorial();
+  toast('🗑️ Historial borrado');
+}
+
+// ============================================================
+//  TOAST
+// ============================================================
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+</script>
+
+<!-- SERVICE WORKER -->
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
