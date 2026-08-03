@@ -420,7 +420,7 @@
       padding-bottom: 4px;
       border-bottom: 1px solid #F2C4D4;
     }
-    .pdf-section p { font-size: 13px; line-height: 1.75; color: #1A1014; font-family: Georgia, serif; }
+    .pdf-section p, .pdf-item { font-size: 13px; line-height: 1.75; color: #1A1014; font-family: Georgia, serif; }
     .pdf-photos { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
     .pdf-photos img { width: 150px; height: 150px; object-fit: cover; border-radius: 8px; border: 1px solid #F2C4D4; }
     .pdf-footer {
@@ -1360,14 +1360,20 @@ function textoASeccionesHtml(cuerpo) {
   let currentSection = '';
   let currentContent = [];
 
+  // Cada línea de contenido (por ej. cada ítem numerado del protocolo) se
+  // envuelve en su propio bloque .pdf-item, en vez de juntarse todo en un
+  // único <p> separado por <br/>. Así, al exportar el PDF, podemos medir
+  // dónde empieza y termina cada uno y evitar cortarlo entre dos hojas.
+  const itemsHtml = (items) => items.map(t => `<div class="pdf-item">${t}</div>`).join('');
+
   const flushSection = () => {
     if (currentSection) {
       bodyHtml += `<div class="pdf-section">
         <div class="pdf-section-title">${currentSection}</div>
-        <p>${currentContent.join('<br />')}</p>
+        ${itemsHtml(currentContent)}
       </div>`;
     } else if (currentContent.length) {
-      bodyHtml += `<div class="pdf-section"><p>${currentContent.join('<br />')}</p></div>`;
+      bodyHtml += `<div class="pdf-section">${itemsHtml(currentContent)}</div>`;
     }
   };
 
@@ -1549,15 +1555,68 @@ function buscarCorteSeguro(filasBlancas, idealY, limiteInferior) {
 }
 
 // ============================================================
+//  HELPER: mide, en el DOM ya renderizado (antes de rasterizar con
+//  html2canvas), dónde empieza y termina cada ítem de contenido
+//  (.pdf-item) — por ejemplo cada paso numerado de un protocolo.
+//  El título de una sección se pega a su primer ítem, para que un
+//  título tampoco quede solo al final de una hoja.
+//  Devuelve coordenadas en píxeles CSS, relativas al tope de la página.
+// ============================================================
+function medirBloquesNoDivisibles(paginaEl) {
+  const paginaTop = paginaEl.getBoundingClientRect().top;
+  const bloques = [];
+  paginaEl.querySelectorAll('.pdf-section').forEach(sec => {
+    const titulo = sec.querySelector('.pdf-section-title');
+    const items = Array.from(sec.querySelectorAll('.pdf-item'));
+    if (titulo && items.length) {
+      const rTitulo = titulo.getBoundingClientRect();
+      const rItem0 = items[0].getBoundingClientRect();
+      bloques.push({ top: rTitulo.top - paginaTop, bottom: rItem0.bottom - paginaTop });
+      items.slice(1).forEach(it => {
+        const r = it.getBoundingClientRect();
+        bloques.push({ top: r.top - paginaTop, bottom: r.bottom - paginaTop });
+      });
+    } else {
+      items.forEach(it => {
+        const r = it.getBoundingClientRect();
+        bloques.push({ top: r.top - paginaTop, bottom: r.bottom - paginaTop });
+      });
+    }
+  });
+  return bloques;
+}
+
+// Elige dónde cortar: si el corte "ideal" cae en medio de un bloque
+// indivisible (ej. un ítem numerado que ocupa 2 líneas), empuja ese
+// bloque entero a la hoja siguiente. Si no, cae al corte por franja
+// blanca de siempre.
+function elegirCorte(filasBlancas, bloques, idealY, limiteInferior, altoPaginaPx) {
+  const bloque = bloques.find(b => idealY > b.top + 2 && idealY < b.bottom - 2);
+  if (bloque) {
+    const contenidoAntes = bloque.top - limiteInferior;
+    const altoBloque = bloque.bottom - bloque.top;
+    // Solo empujamos el bloque completo si: (a) ya aprovechamos una parte
+    // razonable de la hoja actual, y (b) el bloque entero entra en una
+    // hoja completa (si no entrara, no hay forma de no partirlo igual).
+    if (contenidoAntes >= altoPaginaPx * 0.15 && altoBloque <= altoPaginaPx) {
+      return Math.floor(bloque.top);
+    }
+  }
+  return buscarCorteSeguro(filasBlancas, idealY, limiteInferior);
+}
+
+// ============================================================
 //  HELPER: agrega un canvas (posiblemente más alto que una hoja A4)
 //  al PDF partiéndolo en tantas páginas como haga falta.
 //  - Corta siempre en un espacio en blanco real entre líneas/secciones,
 //    nunca en medio de una línea de texto.
+//  - Si se le pasan "bloques" (ítems medidos en el DOM), nunca corta en
+//    medio de uno: empuja el ítem completo a la hoja siguiente.
 //  - Si el resto que queda para la última hoja es muy chico (por ej.
 //    una sola línea), lo reparte con la hoja anterior en vez de dejar
 //    una página casi vacía.
 // ============================================================
-function agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, empezarNuevaPagina) {
+function agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, empezarNuevaPagina, bloques = []) {
   const altoPaginaPx = Math.floor((pdfPageH * canvas.width) / pdfW);
 
   // Si entra en una sola hoja, no hace falta ningún análisis extra
@@ -1571,14 +1630,15 @@ function agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, empezarNuevaPagina) 
 
   const filasBlancas = detectarFilasBlancas(canvas);
 
-  // 1) Cortes preliminares, cada uno buscando la franja blanca más cercana
-  //    al límite de una hoja (en vez de cortar justo ahí sin mirar).
+  // 1) Cortes preliminares: para cada límite de hoja, primero se respeta
+  //    cualquier bloque indivisible (ítem) que caiga ahí; si no hay
+  //    ninguno, se usa la franja blanca más cercana como antes.
   const cortes = [];
   let inicio = 0;
   while (inicio < canvas.height) {
     const idealY = inicio + altoPaginaPx;
     if (idealY >= canvas.height) { cortes.push(canvas.height); break; }
-    const corte = buscarCorteSeguro(filasBlancas, idealY, inicio);
+    const corte = elegirCorte(filasBlancas, bloques, idealY, inicio, altoPaginaPx);
     cortes.push(corte);
     inicio = corte;
   }
@@ -1593,7 +1653,7 @@ function agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, empezarNuevaPagina) 
     if (restoUltima < MIN_ULTIMA_PAGINA) {
       const totalPar = canvas.height - inicioPenultima;
       const idealMedio = inicioPenultima + Math.round(totalPar / 2);
-      const nuevoCorte = buscarCorteSeguro(filasBlancas, idealMedio, inicioPenultima);
+      const nuevoCorte = elegirCorte(filasBlancas, bloques, idealMedio, inicioPenultima, altoPaginaPx);
       cortes.splice(cortes.length - 2, 1, nuevoCorte); // reemplaza el corte anterior por el nuevo, más equilibrado
     }
   }
@@ -1640,8 +1700,11 @@ async function descargarPDF() {
   })));
 
   const anchoCaptura = orientacionCrear === 'l' ? 1123 : 794;
+  const ESCALA = 2;
+  const bloques = medirBloquesNoDivisibles(tpl.querySelector('.pdf-page'))
+    .map(b => ({ top: b.top * ESCALA, bottom: b.bottom * ESCALA }));
   const canvas = await html2canvas(tpl.querySelector('.pdf-page'), {
-    scale: 2,
+    scale: ESCALA,
     useCORS: true,
     backgroundColor: '#ffffff',
     width: anchoCaptura,
@@ -1652,7 +1715,7 @@ async function descargarPDF() {
   const pdfW = pdf.internal.pageSize.getWidth();
   const pdfPageH = pdf.internal.pageSize.getHeight();
 
-  agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, false);
+  agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, false, bloques);
 
   // File name
   const cliente = document.getElementById('inp-cliente').value.replace(/\s+/g,'_') || 'documento';
@@ -1679,11 +1742,13 @@ async function compartirPDF() {
   tpl.innerHTML = buildPDFHtml();
 
   const anchoCapturaShare = orientacionCrear === 'l' ? 1123 : 794;
+  const bloquesShare = medirBloquesNoDivisibles(tpl.querySelector('.pdf-page'))
+    .map(b => ({ top: b.top * 2, bottom: b.bottom * 2 }));
   const canvas = await html2canvas(tpl.querySelector('.pdf-page'), { scale: 2, backgroundColor: '#ffffff', width: anchoCapturaShare });
   const pdf = new jsPDF({ orientation: orientacionCrear, unit: 'mm', format: 'a4' });
   const pdfW = pdf.internal.pageSize.getWidth();
   const pdfPageH = pdf.internal.pageSize.getHeight();
-  agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, false);
+  agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, false, bloquesShare);
   const blob = pdf.output('blob');
 
   const cliente = document.getElementById('inp-cliente').value || 'documento';
@@ -2037,11 +2102,13 @@ async function descargarTallerPDF() {
     await Promise.all([...imgs].map(img => new Promise(r => {
       if (img.complete) r(); else { img.onload = r; img.onerror = r; }
     })));
+    const bloques = medirBloquesNoDivisibles(tpl.querySelector('.pdf-page'))
+      .map(b => ({ top: b.top * 2, bottom: b.bottom * 2 }));
     const canvas = await html2canvas(tpl.querySelector('.pdf-page'), { scale: 2, useCORS: true, backgroundColor: '#ffffff', width: anchoCapturaTaller });
     if (i === 0) thumbnail = canvas.toDataURL('image/jpeg', 0.92);
     const pdfW = pdf.internal.pageSize.getWidth();
     const pdfPageH = pdf.internal.pageSize.getHeight();
-    agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, i > 0);
+    agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, i > 0, bloques);
   }
 
   const tallerNombre = (document.getElementById('taller-nombre').value || 'taller').replace(/\s+/g, '_');
@@ -2067,10 +2134,12 @@ async function compartirTallerPDF() {
 
   for (let i = 0; i < pages.length; i++) {
     tpl.innerHTML = pages[i];
+    const bloques = medirBloquesNoDivisibles(tpl.querySelector('.pdf-page'))
+      .map(b => ({ top: b.top * 2, bottom: b.bottom * 2 }));
     const canvas = await html2canvas(tpl.querySelector('.pdf-page'), { scale: 2, backgroundColor: '#ffffff', width: anchoCapturaTallerShare });
     const pdfW = pdf.internal.pageSize.getWidth();
     const pdfPageH = pdf.internal.pageSize.getHeight();
-    agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, i > 0);
+    agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, i > 0, bloques);
   }
   tpl.innerHTML = '';
 
