@@ -1495,38 +1495,113 @@ function cerrarPreview() {
 }
 
 // ============================================================
+//  HELPER: analiza el canvas y devuelve, para cada fila de píxeles,
+//  si es "casi blanca" (espacio entre líneas, párrafos o secciones).
+//  Se usa para poder cortar el PDF ahí y no partir texto al medio.
+// ============================================================
+function detectarFilasBlancas(canvas) {
+  const ctx = canvas.getContext('2d');
+  const { width, height } = canvas;
+  const { data } = ctx.getImageData(0, 0, width, height);
+  const filas = new Uint8Array(height);
+  const paso = Math.max(1, Math.floor(width / 250)); // muestreo: no hace falta mirar cada píxel
+  for (let y = 0; y < height; y++) {
+    let blanca = true;
+    const inicioFila = y * width * 4;
+    for (let x = 0; x < width; x += paso) {
+      const i = inicioFila + x * 4;
+      if (data[i] < 248 || data[i + 1] < 248 || data[i + 2] < 248) { blanca = false; break; }
+    }
+    filas[y] = blanca ? 1 : 0;
+  }
+  return filas;
+}
+
+// Busca, cerca de un corte "ideal", una franja de varias filas en blanco
+// seguidas para cortar ahí (y no en medio de una línea de texto).
+// Si no encuentra ninguna franja razonable, devuelve el corte ideal tal cual.
+function buscarCorteSeguro(filasBlancas, idealY, limiteInferior) {
+  const FRANJA_MIN = 6; // filas en blanco seguidas que consideramos "espacio real"
+  const minY = Math.max(limiteInferior + 20, Math.floor(idealY * 0.7));
+  let corridaBlanca = 0;
+  for (let y = Math.min(idealY, filasBlancas.length - 1); y > minY; y--) {
+    corridaBlanca = filasBlancas[y] ? corridaBlanca + 1 : 0;
+    if (corridaBlanca >= FRANJA_MIN) return y + Math.floor(FRANJA_MIN / 2);
+  }
+  return idealY; // no hay franja blanca cercana (ej. una foto grande): corte "duro" como antes
+}
+
+// ============================================================
 //  HELPER: agrega un canvas (posiblemente más alto que una hoja A4)
-//  al PDF partiéndolo en tantas páginas como haga falta, para que
-//  nunca se corte contenido al final del documento.
+//  al PDF partiéndolo en tantas páginas como haga falta.
+//  - Corta siempre en un espacio en blanco real entre líneas/secciones,
+//    nunca en medio de una línea de texto.
+//  - Si el resto que queda para la última hoja es muy chico (por ej.
+//    una sola línea), lo reparte con la hoja anterior en vez de dejar
+//    una página casi vacía.
 // ============================================================
 function agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, empezarNuevaPagina) {
-  // Alto de una página, expresado en píxeles del canvas original
   const altoPaginaPx = Math.floor((pdfPageH * canvas.width) / pdfW);
-  let renderizadoPx = 0;
-  let primeraPagina = true;
 
-  while (renderizadoPx < canvas.height) {
-    const altoSlicePx = Math.min(altoPaginaPx, canvas.height - renderizadoPx);
+  // Si entra en una sola hoja, no hace falta ningún análisis extra
+  if (canvas.height <= altoPaginaPx) {
+    const sliceData = canvas.toDataURL('image/jpeg', 0.92);
+    const altoMm = (canvas.height * pdfW) / canvas.width;
+    if (empezarNuevaPagina) pdf.addPage();
+    pdf.addImage(sliceData, 'JPEG', 0, 0, pdfW, altoMm);
+    return;
+  }
 
+  const filasBlancas = detectarFilasBlancas(canvas);
+
+  // 1) Cortes preliminares, cada uno buscando la franja blanca más cercana
+  //    al límite de una hoja (en vez de cortar justo ahí sin mirar).
+  const cortes = [];
+  let inicio = 0;
+  while (inicio < canvas.height) {
+    const idealY = inicio + altoPaginaPx;
+    if (idealY >= canvas.height) { cortes.push(canvas.height); break; }
+    const corte = buscarCorteSeguro(filasBlancas, idealY, inicio);
+    cortes.push(corte);
+    inicio = corte;
+  }
+
+  // 2) Si la última hoja queda con muy poco contenido (ej. 1 línea o casi
+  //    en blanco), la fusionamos con la anterior repartiendo el contenido
+  //    de las dos de forma más pareja, en vez de dejar un resto huérfano.
+  const MIN_ULTIMA_PAGINA = altoPaginaPx * 0.3;
+  if (cortes.length >= 2) {
+    const inicioPenultima = cortes.length >= 3 ? cortes[cortes.length - 3] : 0;
+    const restoUltima = canvas.height - cortes[cortes.length - 2];
+    if (restoUltima < MIN_ULTIMA_PAGINA) {
+      const totalPar = canvas.height - inicioPenultima;
+      const idealMedio = inicioPenultima + Math.round(totalPar / 2);
+      const nuevoCorte = buscarCorteSeguro(filasBlancas, idealMedio, inicioPenultima);
+      cortes.splice(cortes.length - 2, 1, nuevoCorte); // reemplaza el corte anterior por el nuevo, más equilibrado
+    }
+  }
+
+  // 3) Genera cada hoja a partir de los cortes finales
+  let y0 = 0;
+  cortes.forEach((y1, idx) => {
+    const altoSlicePx = y1 - y0;
     const sliceCanvas = document.createElement('canvas');
     sliceCanvas.width = canvas.width;
     sliceCanvas.height = altoSlicePx;
-    const ctx = sliceCanvas.getContext('2d');
-    ctx.drawImage(
+    sliceCanvas.getContext('2d').drawImage(
       canvas,
-      0, renderizadoPx, canvas.width, altoSlicePx,
+      0, y0, canvas.width, altoSlicePx,
       0, 0, canvas.width, altoSlicePx
     );
 
     const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.92);
     const sliceAltoMm = (altoSlicePx * pdfW) / canvas.width;
 
-    if (!primeraPagina || empezarNuevaPagina) pdf.addPage();
+    if (idx > 0 || empezarNuevaPagina) pdf.addPage();
     pdf.addImage(sliceData, 'JPEG', 0, 0, pdfW, sliceAltoMm);
 
-    primeraPagina = false;
-    renderizadoPx += altoSlicePx;
-  }
+    y0 = y1;
+  });
 }
 
 // ============================================================
