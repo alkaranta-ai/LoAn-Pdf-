@@ -786,6 +786,20 @@
 <!-- ============ PANEL CONFIG ============ -->
 <div class="panel" id="panel-config">
   <div class="card">
+    <div class="card-title">🔑 Clave de IA (Gemini)</div>
+    <div class="settings-row" style="flex-direction:column; align-items:stretch; gap:6px;">
+      <div class="settings-sub">
+        Cada persona necesita su PROPIA clave gratuita — si usás una compartida, se agota enseguida y aparece "límite por hoy".
+        Sacá la tuya gratis en <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> (con tu cuenta de Google) y pegala acá. Se guarda solo en este dispositivo.
+      </div>
+      <input type="password" id="cfg-gemini-key" placeholder="Pegá acá tu clave de Gemini" style="width:100%; box-sizing:border-box;" />
+    </div>
+    <div style="margin-top:12px;">
+      <button class="btn btn-primary" onclick="guardarConfig()">💾 Guardar configuración</button>
+    </div>
+  </div>
+
+  <div class="card">
     <div class="card-title">⚙️ Configuración del Negocio</div>
     <div class="settings-row">
       <div>
@@ -942,6 +956,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================================
 function cargarConfig() {
   const cfg = JSON.parse(localStorage.getItem('loan_config') || '{}');
+  document.getElementById('cfg-gemini-key').value = cfg.geminiKey || '';
   document.getElementById('cfg-nombre').value = cfg.nombre || '';
   document.getElementById('cfg-dir').value    = cfg.dir    || '';
   document.getElementById('cfg-tel').value    = cfg.tel    || '';
@@ -952,6 +967,7 @@ function cargarConfig() {
 
 function guardarConfig() {
   const cfg = {
+    geminiKey: document.getElementById('cfg-gemini-key').value.trim(),
     nombre: document.getElementById('cfg-nombre').value || 'LoAn Estética',
     dir:    document.getElementById('cfg-dir').value,
     tel:    document.getElementById('cfg-tel').value,
@@ -1011,10 +1027,11 @@ function borrarFoto(i) {
 //  IA — GENERAR CONTENIDO
 // ============================================================
 const GEMINI_MODEL = 'gemini-flash-latest';
-const GEMINI_API_KEY = 'AQ.Ab8RN6LsvIgnzF54v9jle2vpPRToDCf47ITrAkuVJjrQmSphQw';
 
 function getGeminiKey() {
-  return GEMINI_API_KEY;
+  // Cada dispositivo usa SU PROPIA clave (pegada en ⚙️ Config), nunca una compartida.
+  // Así el límite diario de uso es individual y no se agota por otras personas usando la app.
+  return getConfig().geminiKey || '';
 }
 let adjuntoTexto = ''; // contenido del archivo adjunto
 
