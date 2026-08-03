@@ -1121,7 +1121,13 @@ const DICCIONARIO_ESTETICA = [
   [/piel|dermat/i,           'skincare dermatology'],
   [/lifting/i,               'eyelash lift beauty salon'],
   [/microblading|micropigment/i, 'microblading eyebrow beauty'],
-  [/masaje|reduc/i,          'body treatment spa'],
+  [/madero(terapia)?/i,     'anti-cellulite body massage spa'],
+  [/choco(terapia)?/i,      'body wrap spa treatment'],
+  [/presoterapia|drenaje linf[aá]tico/i, 'lymphatic drainage leg massage spa'],
+  [/radiofrecuencia|criolip[oó]lisis|cavitaci[oó]n/i, 'body contouring spa treatment'],
+  [/dermapen|peeling|exfoliaci[oó]n/i, 'facial skincare treatment'],
+  [/contorno corporal|reduc/i, 'body treatment spa'],
+  [/masaje/i,                'body treatment spa'],
 ];
 
 // Consulta base según el tipo de documento (fallback si no hay coincidencias)
@@ -1138,14 +1144,20 @@ const QUERY_BASE_POR_TIPO = {
   taller_libre:       'beauty workshop',
 };
 
+// Busca coincidencia en el diccionario curado. Devuelve null si no hay ninguna
+// (a diferencia de construirQueryImagen, que siempre devuelve algo por el fallback genérico).
+function coincidenciaDiccionario(texto) {
+  const t = (texto || '').toLowerCase();
+  const coincidencias = DICCIONARIO_ESTETICA
+    .filter(([regex]) => regex.test(t))
+    .map(([, termino]) => termino);
+  return coincidencias.length ? coincidencias.slice(0, 2).join(' ') : null;
+}
+
 // Arma una consulta de búsqueda en inglés a partir del tipo de doc + texto libre
 function construirQueryImagen(tipo, ...textos) {
-  const texto = textos.filter(Boolean).join(' ').toLowerCase();
-  const coincidencias = DICCIONARIO_ESTETICA
-    .filter(([regex]) => regex.test(texto))
-    .map(([, termino]) => termino);
-  if (coincidencias.length) return coincidencias.slice(0, 2).join(' ');
-  return QUERY_BASE_POR_TIPO[tipo] || 'beauty salon spa';
+  const texto = textos.filter(Boolean).join(' ');
+  return coincidenciaDiccionario(texto) || QUERY_BASE_POR_TIPO[tipo] || 'beauty salon spa';
 }
 
 // Intenta mejorar la consulta con la IA (opcional); si falla, se usa el heurístico de arriba
@@ -1226,7 +1238,8 @@ async function completarFotosConInternet(arregloFotos, tipo, tipoLabel, textoCon
   const cfg = getConfig();
   if (cfg.imgsAuto === false) return false; // el usuario desactivó la búsqueda automática
 
-  let query = await refinarQueryConIA(tipoLabel, textoContexto);
+  let query = coincidenciaDiccionario(textoContexto);
+  if (!query) query = await refinarQueryConIA(tipoLabel, textoContexto);
   if (!query) query = construirQueryImagen(tipo, textoContexto);
 
   const nuevas = await buscarImagenesInternet(query, cantidad);
@@ -1705,50 +1718,66 @@ function agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, empezarNuevaPagina, 
 //  DESCARGAR PDF
 // ============================================================
 async function descargarPDF() {
-  await prepararFotosCrear();
-  toast('📄 Generando PDF...');
+  try {
+    await prepararFotosCrear();
+    toast('📄 Generando PDF...');
 
-  const { jsPDF } = window.jspdf;
-  const tpl = document.getElementById('pdf-template');
-  tpl.innerHTML = buildPDFHtml();
+    const { jsPDF } = window.jspdf;
+    const tpl = document.getElementById('pdf-template');
+    tpl.innerHTML = buildPDFHtml();
 
-  // Wait for images to load
-  const imgs = tpl.querySelectorAll('img');
-  await Promise.all([...imgs].map(img => new Promise(r => {
-    if (img.complete) r();
-    else { img.onload = r; img.onerror = r; }
-  })));
+    // Wait for images to load
+    const imgs = tpl.querySelectorAll('img');
+    await Promise.all([...imgs].map(img => new Promise(r => {
+      if (img.complete) r();
+      else { img.onload = r; img.onerror = r; }
+    })));
 
-  const anchoCaptura = orientacionCrear === 'l' ? 1123 : 794;
-  const ESCALA = 2;
-  const bloques = medirBloquesNoDivisibles(tpl.querySelector('.pdf-page'))
-    .map(b => ({ top: b.top * ESCALA, bottom: b.bottom * ESCALA }));
-  const canvas = await html2canvas(tpl.querySelector('.pdf-page'), {
-    scale: ESCALA,
-    useCORS: true,
-    backgroundColor: '#ffffff',
-    width: anchoCaptura,
-  });
+    const anchoCaptura = orientacionCrear === 'l' ? 1123 : 794;
+    const ESCALA = 2;
+    const bloques = medirBloquesNoDivisibles(tpl.querySelector('.pdf-page'))
+      .map(b => ({ top: b.top * ESCALA, bottom: b.bottom * ESCALA }));
+    const canvas = await html2canvas(tpl.querySelector('.pdf-page'), {
+      scale: ESCALA,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      width: anchoCaptura,
+    });
 
-  const imgData = canvas.toDataURL('image/jpeg', 0.92);
-  const pdf = new jsPDF({ orientation: orientacionCrear, unit: 'mm', format: 'a4' });
-  const pdfW = pdf.internal.pageSize.getWidth();
-  const pdfPageH = pdf.internal.pageSize.getHeight();
+    const pdf = new jsPDF({ orientation: orientacionCrear, unit: 'mm', format: 'a4' });
+    const pdfW = pdf.internal.pageSize.getWidth();
+    const pdfPageH = pdf.internal.pageSize.getHeight();
 
-  agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, false, bloques);
+    agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, false, bloques);
 
-  // File name
-  const cliente = document.getElementById('inp-cliente').value.replace(/\s+/g,'_') || 'documento';
-  const tipo    = selectedType;
-  const fecha   = document.getElementById('inp-fecha').value.replace(/-/g,'');
-  const nombre  = `LoAn_${tipo}_${cliente}_${fecha}.pdf`;
+    // File name
+    const cliente = document.getElementById('inp-cliente').value.replace(/\s+/g,'_') || 'documento';
+    const tipo    = selectedType;
+    const fecha   = document.getElementById('inp-fecha').value.replace(/-/g,'');
+    const nombre  = `LoAn_${tipo}_${cliente}_${fecha}.pdf`;
 
-  // Save to history
-  guardarEnHistorial(nombre, imgData);
+    // Primero descargamos — pase lo que pase con el historial después, el PDF ya está guardado.
+    pdf.save(nombre);
+    toast('✅ PDF descargado');
 
-  pdf.save(nombre);
-  tpl.innerHTML = '';
-  toast('✅ PDF descargado');
+    // Thumbnail chico solo para la vista previa del historial (no la imagen en alta resolución)
+    guardarEnHistorial(nombre, generarThumbnailChico(canvas));
+
+    tpl.innerHTML = '';
+  } catch (e) {
+    console.error('Error generando el PDF:', e);
+    toast('⚠️ No se pudo generar el PDF: ' + e.message);
+  }
+}
+
+// Reduce un canvas grande a un thumbnail liviano (para no llenar el almacenamiento del historial)
+function generarThumbnailChico(canvas, anchoMax = 300) {
+  const factor = anchoMax / canvas.width;
+  const c = document.createElement('canvas');
+  c.width = anchoMax;
+  c.height = Math.round(canvas.height * factor);
+  c.getContext('2d').drawImage(canvas, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.6);
 }
 
 // ============================================================
@@ -1756,25 +1785,31 @@ async function descargarPDF() {
 // ============================================================
 async function compartirPDF() {
   if (!navigator.share) { descargarPDF(); return; }
-  await prepararFotosCrear();
-  const { jsPDF } = window.jspdf;
-  const tpl = document.getElementById('pdf-template');
-  tpl.innerHTML = buildPDFHtml();
+  try {
+    await prepararFotosCrear();
+    const { jsPDF } = window.jspdf;
+    const tpl = document.getElementById('pdf-template');
+    tpl.innerHTML = buildPDFHtml();
 
-  const anchoCapturaShare = orientacionCrear === 'l' ? 1123 : 794;
-  const bloquesShare = medirBloquesNoDivisibles(tpl.querySelector('.pdf-page'))
-    .map(b => ({ top: b.top * 2, bottom: b.bottom * 2 }));
-  const canvas = await html2canvas(tpl.querySelector('.pdf-page'), { scale: 2, backgroundColor: '#ffffff', width: anchoCapturaShare });
-  const pdf = new jsPDF({ orientation: orientacionCrear, unit: 'mm', format: 'a4' });
-  const pdfW = pdf.internal.pageSize.getWidth();
-  const pdfPageH = pdf.internal.pageSize.getHeight();
-  agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, false, bloquesShare);
-  const blob = pdf.output('blob');
+    const anchoCapturaShare = orientacionCrear === 'l' ? 1123 : 794;
+    const bloquesShare = medirBloquesNoDivisibles(tpl.querySelector('.pdf-page'))
+      .map(b => ({ top: b.top * 2, bottom: b.bottom * 2 }));
+    const canvas = await html2canvas(tpl.querySelector('.pdf-page'), { scale: 2, backgroundColor: '#ffffff', width: anchoCapturaShare });
+    const pdf = new jsPDF({ orientation: orientacionCrear, unit: 'mm', format: 'a4' });
+    const pdfW = pdf.internal.pageSize.getWidth();
+    const pdfPageH = pdf.internal.pageSize.getHeight();
+    agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, false, bloquesShare);
+    const blob = pdf.output('blob');
 
-  const cliente = document.getElementById('inp-cliente').value || 'documento';
-  const file = new File([blob], `LoAn_${selectedType}_${cliente}.pdf`, { type: 'application/pdf' });
-  await navigator.share({ title: 'Documento LoAn Estética', files: [file] });
-  tpl.innerHTML = '';
+    const cliente = document.getElementById('inp-cliente').value || 'documento';
+    const file = new File([blob], `LoAn_${selectedType}_${cliente}.pdf`, { type: 'application/pdf' });
+    await navigator.share({ title: 'Documento LoAn Estética', files: [file] });
+    tpl.innerHTML = '';
+  } catch (e) {
+    if (e.name === 'AbortError') return; // la usuaria canceló el diálogo de compartir, no es un error
+    console.error('Error compartiendo el PDF:', e);
+    toast('⚠️ No se pudo compartir el PDF: ' + e.message);
+  }
 }
 
 // ============================================================
@@ -2106,105 +2141,128 @@ async function previsualizarTallerPDF() {
 
 async function descargarTallerPDF() {
   if (!tallerResult) { toast('✏️ Primero generá el contenido con Claude'); return; }
-  await prepararFotosTaller();
-  toast('📄 Generando PDF...');
+  try {
+    await prepararFotosTaller();
+    toast('📄 Generando PDF...');
 
-  const { jsPDF } = window.jspdf;
-  const tpl = document.getElementById('pdf-template');
-  const pages = buildTallerPages();
-  const pdf = new jsPDF({ orientation: orientacionTaller, unit: 'mm', format: 'a4' });
-  const anchoCapturaTaller = orientacionTaller === 'l' ? 1123 : 794;
-  let thumbnail = null;
+    const { jsPDF } = window.jspdf;
+    const tpl = document.getElementById('pdf-template');
+    const pages = buildTallerPages();
+    const pdf = new jsPDF({ orientation: orientacionTaller, unit: 'mm', format: 'a4' });
+    const anchoCapturaTaller = orientacionTaller === 'l' ? 1123 : 794;
+    let thumbnail = null;
 
-  for (let i = 0; i < pages.length; i++) {
-    tpl.innerHTML = pages[i];
-    const imgs = tpl.querySelectorAll('img');
-    await Promise.all([...imgs].map(img => new Promise(r => {
-      if (img.complete) r(); else { img.onload = r; img.onerror = r; }
-    })));
-    const bloques = medirBloquesNoDivisibles(tpl.querySelector('.pdf-page'))
-      .map(b => ({ top: b.top * 2, bottom: b.bottom * 2 }));
-    const canvas = await html2canvas(tpl.querySelector('.pdf-page'), { scale: 2, useCORS: true, backgroundColor: '#ffffff', width: anchoCapturaTaller });
-    if (i === 0) thumbnail = canvas.toDataURL('image/jpeg', 0.92);
-    const pdfW = pdf.internal.pageSize.getWidth();
-    const pdfPageH = pdf.internal.pageSize.getHeight();
-    agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, i > 0, bloques);
+    for (let i = 0; i < pages.length; i++) {
+      tpl.innerHTML = pages[i];
+      const imgs = tpl.querySelectorAll('img');
+      await Promise.all([...imgs].map(img => new Promise(r => {
+        if (img.complete) r(); else { img.onload = r; img.onerror = r; }
+      })));
+      const bloques = medirBloquesNoDivisibles(tpl.querySelector('.pdf-page'))
+        .map(b => ({ top: b.top * 2, bottom: b.bottom * 2 }));
+      const canvas = await html2canvas(tpl.querySelector('.pdf-page'), { scale: 2, useCORS: true, backgroundColor: '#ffffff', width: anchoCapturaTaller });
+      if (i === 0) thumbnail = generarThumbnailChico(canvas);
+      const pdfW = pdf.internal.pageSize.getWidth();
+      const pdfPageH = pdf.internal.pageSize.getHeight();
+      agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, i > 0, bloques);
+    }
+
+    const tallerNombre = (document.getElementById('taller-nombre').value || 'taller').replace(/\s+/g, '_');
+    const fechaArchivo = (document.getElementById('taller-fecha').value || '').replace(/-/g, '');
+    const nombreArchivo = `Taller_${tallerNombre}_${fechaArchivo || Date.now()}.pdf`;
+
+    pdf.save(nombreArchivo);
+    toast('✅ PDF descargado');
+    guardarEnHistorialTaller(nombreArchivo, thumbnail);
+    tpl.innerHTML = '';
+  } catch (e) {
+    console.error('Error generando el PDF de taller:', e);
+    toast('⚠️ No se pudo generar el PDF: ' + e.message);
   }
-
-  const tallerNombre = (document.getElementById('taller-nombre').value || 'taller').replace(/\s+/g, '_');
-  const fechaArchivo = (document.getElementById('taller-fecha').value || '').replace(/-/g, '');
-  const nombreArchivo = `Taller_${tallerNombre}_${fechaArchivo || Date.now()}.pdf`;
-
-  guardarEnHistorialTaller(nombreArchivo, thumbnail);
-  pdf.save(nombreArchivo);
-  tpl.innerHTML = '';
-  toast('✅ PDF descargado');
 }
 
 async function compartirTallerPDF() {
   if (!tallerResult) { toast('✏️ Primero generá el contenido con Claude'); return; }
   if (!navigator.share) { descargarTallerPDF(); return; }
-  await prepararFotosTaller();
+  try {
+    await prepararFotosTaller();
 
-  const { jsPDF } = window.jspdf;
-  const tpl = document.getElementById('pdf-template');
-  const pages = buildTallerPages();
-  const pdf = new jsPDF({ orientation: orientacionTaller, unit: 'mm', format: 'a4' });
-  const anchoCapturaTallerShare = orientacionTaller === 'l' ? 1123 : 794;
+    const { jsPDF } = window.jspdf;
+    const tpl = document.getElementById('pdf-template');
+    const pages = buildTallerPages();
+    const pdf = new jsPDF({ orientation: orientacionTaller, unit: 'mm', format: 'a4' });
+    const anchoCapturaTallerShare = orientacionTaller === 'l' ? 1123 : 794;
 
-  for (let i = 0; i < pages.length; i++) {
-    tpl.innerHTML = pages[i];
-    const bloques = medirBloquesNoDivisibles(tpl.querySelector('.pdf-page'))
-      .map(b => ({ top: b.top * 2, bottom: b.bottom * 2 }));
-    const canvas = await html2canvas(tpl.querySelector('.pdf-page'), { scale: 2, backgroundColor: '#ffffff', width: anchoCapturaTallerShare });
-    const pdfW = pdf.internal.pageSize.getWidth();
-    const pdfPageH = pdf.internal.pageSize.getHeight();
-    agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, i > 0, bloques);
+    for (let i = 0; i < pages.length; i++) {
+      tpl.innerHTML = pages[i];
+      const bloques = medirBloquesNoDivisibles(tpl.querySelector('.pdf-page'))
+        .map(b => ({ top: b.top * 2, bottom: b.bottom * 2 }));
+      const canvas = await html2canvas(tpl.querySelector('.pdf-page'), { scale: 2, backgroundColor: '#ffffff', width: anchoCapturaTallerShare });
+      const pdfW = pdf.internal.pageSize.getWidth();
+      const pdfPageH = pdf.internal.pageSize.getHeight();
+      agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, i > 0, bloques);
+    }
+    tpl.innerHTML = '';
+
+    const blob = pdf.output('blob');
+    const tallerNombre = document.getElementById('taller-nombre').value || 'taller';
+    const file = new File([blob], `Taller_${tallerNombre}.pdf`, { type: 'application/pdf' });
+    await navigator.share({ title: 'Documento de Taller', files: [file] });
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    console.error('Error compartiendo el PDF de taller:', e);
+    toast('⚠️ No se pudo compartir el PDF: ' + e.message);
   }
-  tpl.innerHTML = '';
-
-  const blob = pdf.output('blob');
-  const tallerNombre = document.getElementById('taller-nombre').value || 'taller';
-  const file = new File([blob], `Taller_${tallerNombre}.pdf`, { type: 'application/pdf' });
-  await navigator.share({ title: 'Documento de Taller', files: [file] });
 }
 
 function guardarEnHistorialTaller(nombre, thumbnail) {
-  const historial = JSON.parse(localStorage.getItem('loan_historial') || '[]');
-  historial.unshift({
-    id: Date.now(),
-    nombre,
-    tipo: selectedTallerType,
-    cliente: document.getElementById('taller-nombre').value || '—',
-    fecha: document.getElementById('taller-fecha').value,
-    cuerpo: (tallerResult && tallerResult.texto) || JSON.stringify(tallerResult || {}),
-    thumbnail,
-    fotos: tallerPhotos.length,
-  });
-  if (historial.length > 50) historial.pop();
-  localStorage.setItem('loan_historial', JSON.stringify(historial));
-  renderHistorial();
+  try {
+    const historial = JSON.parse(localStorage.getItem('loan_historial') || '[]');
+    historial.unshift({
+      id: Date.now(),
+      nombre,
+      tipo: selectedTallerType,
+      cliente: document.getElementById('taller-nombre').value || '—',
+      fecha: document.getElementById('taller-fecha').value,
+      cuerpo: (tallerResult && tallerResult.texto) || JSON.stringify(tallerResult || {}),
+      thumbnail,
+      fotos: tallerPhotos.length,
+    });
+    if (historial.length > 50) historial.pop();
+    localStorage.setItem('loan_historial', JSON.stringify(historial));
+    renderHistorial();
+  } catch (e) {
+    // Si no entra más en el almacenamiento del dispositivo, no rompemos la descarga del PDF por eso.
+    console.error('No se pudo guardar en el historial:', e);
+    toast('⚠️ PDF descargado, pero no entró en el historial (falta espacio) — probá "Borrar historial" en ⚙️ Config');
+  }
 }
 
 // ============================================================
 //  HISTORIAL
 // ============================================================
 function guardarEnHistorial(nombre, thumbnail) {
-  const historial = JSON.parse(localStorage.getItem('loan_historial') || '[]');
-  historial.unshift({
-    id: Date.now(),
-    nombre,
-    tipo: selectedType,
-    cliente: document.getElementById('inp-cliente').value || '—',
-    fecha: document.getElementById('inp-fecha').value,
-    cuerpo: document.getElementById('inp-cuerpo').value || iaContent || document.getElementById('inp-descripcion').value,
-    thumbnail,
-    fotos: photos.length,
-  });
-  // Limit to 50
-  if (historial.length > 50) historial.pop();
-  localStorage.setItem('loan_historial', JSON.stringify(historial));
-  renderHistorial();
+  try {
+    const historial = JSON.parse(localStorage.getItem('loan_historial') || '[]');
+    historial.unshift({
+      id: Date.now(),
+      nombre,
+      tipo: selectedType,
+      cliente: document.getElementById('inp-cliente').value || '—',
+      fecha: document.getElementById('inp-fecha').value,
+      cuerpo: document.getElementById('inp-cuerpo').value || iaContent || document.getElementById('inp-descripcion').value,
+      thumbnail,
+      fotos: photos.length,
+    });
+    // Limit to 50
+    if (historial.length > 50) historial.pop();
+    localStorage.setItem('loan_historial', JSON.stringify(historial));
+    renderHistorial();
+  } catch (e) {
+    // Si no entra más en el almacenamiento del dispositivo, no rompemos la descarga del PDF por eso.
+    console.error('No se pudo guardar en el historial:', e);
+    toast('⚠️ PDF descargado, pero no entró en el historial (falta espacio) — probá "Borrar historial" en ⚙️ Config');
+  }
 }
 
 function renderHistorial() {
