@@ -1764,6 +1764,7 @@ async function descargarPDF() {
     guardarEnHistorial(nombre, generarThumbnailChico(canvas));
 
     tpl.innerHTML = '';
+    photos = []; renderFotos(); // el próximo documento arranca sin fotos del anterior
   } catch (e) {
     console.error('Error generando el PDF:', e);
     toast('⚠️ No se pudo generar el PDF: ' + e.message);
@@ -1805,6 +1806,7 @@ async function compartirPDF() {
     const file = new File([blob], `LoAn_${selectedType}_${cliente}.pdf`, { type: 'application/pdf' });
     await navigator.share({ title: 'Documento LoAn Estética', files: [file] });
     tpl.innerHTML = '';
+    photos = []; renderFotos(); // el próximo documento arranca sin fotos del anterior
   } catch (e) {
     if (e.name === 'AbortError') return; // la usuaria canceló el diálogo de compartir, no es un error
     console.error('Error compartiendo el PDF:', e);
@@ -2175,6 +2177,7 @@ async function descargarTallerPDF() {
     toast('✅ PDF descargado');
     guardarEnHistorialTaller(nombreArchivo, thumbnail);
     tpl.innerHTML = '';
+    tallerPhotos = []; renderFotosTaller(); // el próximo documento arranca sin fotos del anterior
   } catch (e) {
     console.error('Error generando el PDF de taller:', e);
     toast('⚠️ No se pudo generar el PDF: ' + e.message);
@@ -2208,6 +2211,7 @@ async function compartirTallerPDF() {
     const tallerNombre = document.getElementById('taller-nombre').value || 'taller';
     const file = new File([blob], `Taller_${tallerNombre}.pdf`, { type: 'application/pdf' });
     await navigator.share({ title: 'Documento de Taller', files: [file] });
+    tallerPhotos = []; renderFotosTaller(); // el próximo documento arranca sin fotos del anterior
   } catch (e) {
     if (e.name === 'AbortError') return;
     console.error('Error compartiendo el PDF de taller:', e);
