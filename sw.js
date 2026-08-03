@@ -1,4 +1,4 @@
-const CACHE = 'loan-docs-v2';
+const CACHE = 'loan-docs-v3';
 const ASSETS = [
   '/LoAn-Pdf-/',
   '/LoAn-Pdf-/index.html',
