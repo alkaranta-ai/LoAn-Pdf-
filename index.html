@@ -1008,6 +1008,67 @@ function getGeminiKey() {
 }
 let adjuntoTexto = ''; // contenido del archivo adjunto
 
+// ============================================================
+//  EXTRAER IMÁGENES EMBEBIDAS DE UN PDF
+//  (pdf.js sólo te da texto con getTextContent(); para las fotos
+//  incrustadas hay que ir a buscarlas a la lista de operaciones
+//  de cada página)
+// ============================================================
+async function extraerImagenesDePDF(pdf, minSize = 60) {
+  const imagenes = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    let page, opList;
+    try {
+      page = await pdf.getPage(i);
+      opList = await page.getOperatorList();
+    } catch (e) { continue; }
+
+    const objIds = new Set();
+    for (let j = 0; j < opList.fnArray.length; j++) {
+      const fn = opList.fnArray[j];
+      if (fn === pdfjsLib.OPS.paintImageXObject || fn === pdfjsLib.OPS.paintImageXObjectRepeat) {
+        objIds.add(opList.argsArray[j][0]);
+      }
+    }
+
+    for (const objId of objIds) {
+      try {
+        const img = await new Promise((resolve) => {
+          if (page.objs.has(objId)) resolve(page.objs.get(objId));
+          else page.objs.get(objId, resolve);
+        });
+        if (!img || !img.width || !img.height) continue;
+        if (img.width < minSize || img.height < minSize) continue; // saltar íconos/adornos chicos
+
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.createImageData(img.width, img.height);
+        const src = img.data;
+        const dst = imageData.data;
+
+        if (img.kind === 3) { // RGBA_32BPP
+          dst.set(src);
+        } else if (img.kind === 2) { // RGB_24BPP
+          for (let p = 0, q = 0; p < src.length; p += 3, q += 4) {
+            dst[q] = src[p]; dst[q + 1] = src[p + 1]; dst[q + 2] = src[p + 2]; dst[q + 3] = 255;
+          }
+        } else {
+          continue; // formato no soportado directamente (ej. 1bpp), lo saltamos
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+        imagenes.push({
+          dataUrl: canvas.toDataURL('image/jpeg', 0.9),
+          name: `pagina${i}_img${imagenes.length + 1}.jpg`
+        });
+      } catch (e) { /* si una imagen puntual falla, seguimos con las demás */ }
+    }
+  }
+  return imagenes;
+}
+
 async function cargarAdjunto(input) {
   const file = input.files[0];
   if (!file) return;
@@ -1035,7 +1096,14 @@ async function cargarAdjunto(input) {
       adjuntoTexto = texto.trim()
         ? texto.trim()
         : `[El PDF ${file.name} no tiene texto extraíble — puede ser una imagen escaneada]`;
-      toast('📄 PDF leído correctamente');
+
+      const imagenesPDF = await extraerImagenesDePDF(pdf);
+      imagenesPDF.forEach(im => photos.push(im));
+      if (imagenesPDF.length) renderFotos();
+
+      toast(imagenesPDF.length
+        ? `📄 PDF leído — ${imagenesPDF.length} imagen(es) incorporada(s)`
+        : '📄 PDF leído correctamente');
     } catch (err) {
       adjuntoTexto = `[No se pudo leer el PDF ${file.name}: ${err.message}]`;
       toast('⚠️ Error leyendo el PDF');
@@ -1420,7 +1488,14 @@ async function cargarAdjuntoTaller(input) {
       tallerAdjuntoTexto = texto.trim()
         ? texto.trim()
         : `[El PDF ${file.name} no tiene texto extraíble — puede ser una imagen escaneada. Probá subirlo como foto en vez de PDF, así la IA lee el contenido visualmente.]`;
-      toast('📄 PDF leído correctamente');
+
+      const imagenesPDF = await extraerImagenesDePDF(pdf);
+      imagenesPDF.forEach(im => tallerPhotos.push(im));
+      if (imagenesPDF.length) renderFotosTaller();
+
+      toast(imagenesPDF.length
+        ? `📄 PDF leído — ${imagenesPDF.length} imagen(es) incorporada(s)`
+        : '📄 PDF leído correctamente');
     } catch (err) {
       tallerAdjuntoTexto = `[No se pudo leer el PDF ${file.name}: ${err.message}]`;
       toast('⚠️ Error leyendo el PDF');
