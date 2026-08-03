@@ -1478,6 +1478,23 @@ async function prepararFotosCrear() {
   }
 }
 
+// Igual que prepararFotosCrear, pero para el flujo de Talleres. Solo aplica a
+// apunte/documento libre (un certificado o una planilla no necesitan fotos).
+async function prepararFotosTaller() {
+  if (selectedTallerType !== 'taller_apunte' && selectedTallerType !== 'taller_libre') return;
+  const tipoLabel = selectedTallerType === 'taller_apunte' ? 'Apunte de Taller' : 'Documento de Taller';
+  const contexto = [
+    document.getElementById('taller-nombre')?.value,
+    document.getElementById('taller-descripcion')?.value,
+    tallerResult && tallerResult.texto,
+  ].filter(Boolean).join(' ');
+  const agregadas = await completarFotosConInternet(tallerPhotos, selectedTallerType, tipoLabel, contexto);
+  if (agregadas) {
+    renderFotosTaller();
+    toast('🌐 Se agregaron fotos automáticas de internet (podés borrarlas o subir las tuyas)');
+  }
+}
+
 async function previsualizarPDF() {
   await prepararFotosCrear();
   const html = buildPDFHtml();
@@ -1950,6 +1967,24 @@ function buildTallerPages() {
   // taller_apunte / taller_libre
   const bodyHtml = textoASeccionesHtml((tallerResult && tallerResult.texto) || '');
   const tipoLabel = selectedTallerType === 'taller_apunte' ? '📘 Apunte / Guía' : '🗂️ Documento del Taller';
+
+  // Fotos ilustrativas (subidas a mano, extraídas de un PDF adjunto, o
+  // agregadas automáticamente por prepararFotosTaller antes de llamar acá)
+  let photosHtml = '';
+  if (tallerPhotos.length) {
+    const hayImgsInternet = tallerPhotos.some(p => p.origen === 'internet');
+    photosHtml = `<div class="pdf-section">
+      <div class="pdf-section-title">📷 Imágenes ilustrativas</div>
+      <div class="pdf-photos">
+        ${tallerPhotos.map(p => `<div style="display:flex; flex-direction:column; gap:2px;">
+          <img src="${p.dataUrl}" />
+          ${p.credito ? `<span style="font-size:8px; color:#999; max-width:150px;">${p.credito}</span>` : ''}
+        </div>`).join('')}
+      </div>
+      ${hayImgsInternet ? `<p style="font-size:10px; color:var(--gris); margin-top:6px;">🌐 Algunas imágenes fueron agregadas automáticamente desde bancos de fotos libres (Openverse), ya que no se subieron fotos propias.</p>` : ''}
+    </div>`;
+  }
+
   return [`
     <div class="pdf-page${claseOrient}">
       <div class="pdf-header">
@@ -1964,6 +1999,7 @@ function buildTallerPages() {
       </div>
       <div class="pdf-badge">${tipoLabel}</div>
       ${bodyHtml || '<div class="pdf-section"><p>Sin contenido</p></div>'}
+      ${photosHtml}
       <div class="pdf-footer">
         <span>${cfg.nombre || 'LoAn Estética'} — ${cfg.dir || ''}</span>
         <span>${cfg.email || ''} ${cfg.ig || ''}</span>
@@ -1971,8 +2007,9 @@ function buildTallerPages() {
     </div>`];
 }
 
-function previsualizarTallerPDF() {
+async function previsualizarTallerPDF() {
   if (!tallerResult) { toast('✏️ Primero generá el contenido con Claude'); return; }
+  await prepararFotosTaller();
   const pages = buildTallerPages();
   const container = document.getElementById('preview-container');
   container.innerHTML = pages
@@ -1984,6 +2021,7 @@ function previsualizarTallerPDF() {
 
 async function descargarTallerPDF() {
   if (!tallerResult) { toast('✏️ Primero generá el contenido con Claude'); return; }
+  await prepararFotosTaller();
   toast('📄 Generando PDF...');
 
   const { jsPDF } = window.jspdf;
@@ -2019,6 +2057,7 @@ async function descargarTallerPDF() {
 async function compartirTallerPDF() {
   if (!tallerResult) { toast('✏️ Primero generá el contenido con Claude'); return; }
   if (!navigator.share) { descargarTallerPDF(); return; }
+  await prepararFotosTaller();
 
   const { jsPDF } = window.jspdf;
   const tpl = document.getElementById('pdf-template');
