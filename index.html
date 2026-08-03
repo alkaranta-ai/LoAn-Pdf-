@@ -1259,6 +1259,41 @@ function cerrarPreview() {
 }
 
 // ============================================================
+//  HELPER: agrega un canvas (posiblemente más alto que una hoja A4)
+//  al PDF partiéndolo en tantas páginas como haga falta, para que
+//  nunca se corte contenido al final del documento.
+// ============================================================
+function agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, empezarNuevaPagina) {
+  // Alto de una página, expresado en píxeles del canvas original
+  const altoPaginaPx = Math.floor((pdfPageH * canvas.width) / pdfW);
+  let renderizadoPx = 0;
+  let primeraPagina = true;
+
+  while (renderizadoPx < canvas.height) {
+    const altoSlicePx = Math.min(altoPaginaPx, canvas.height - renderizadoPx);
+
+    const sliceCanvas = document.createElement('canvas');
+    sliceCanvas.width = canvas.width;
+    sliceCanvas.height = altoSlicePx;
+    const ctx = sliceCanvas.getContext('2d');
+    ctx.drawImage(
+      canvas,
+      0, renderizadoPx, canvas.width, altoSlicePx,
+      0, 0, canvas.width, altoSlicePx
+    );
+
+    const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.92);
+    const sliceAltoMm = (altoSlicePx * pdfW) / canvas.width;
+
+    if (!primeraPagina || empezarNuevaPagina) pdf.addPage();
+    pdf.addImage(sliceData, 'JPEG', 0, 0, pdfW, sliceAltoMm);
+
+    primeraPagina = false;
+    renderizadoPx += altoSlicePx;
+  }
+}
+
+// ============================================================
 //  DESCARGAR PDF
 // ============================================================
 async function descargarPDF() {
@@ -1286,9 +1321,9 @@ async function descargarPDF() {
   const imgData = canvas.toDataURL('image/jpeg', 0.92);
   const pdf = new jsPDF({ orientation: orientacionCrear, unit: 'mm', format: 'a4' });
   const pdfW = pdf.internal.pageSize.getWidth();
-  const pdfH = (canvas.height * pdfW) / canvas.width;
+  const pdfPageH = pdf.internal.pageSize.getHeight();
 
-  pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH);
+  agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, false);
 
   // File name
   const cliente = document.getElementById('inp-cliente').value.replace(/\s+/g,'_') || 'documento';
@@ -1315,11 +1350,10 @@ async function compartirPDF() {
 
   const anchoCapturaShare = orientacionCrear === 'l' ? 1123 : 794;
   const canvas = await html2canvas(tpl.querySelector('.pdf-page'), { scale: 2, backgroundColor: '#ffffff', width: anchoCapturaShare });
-  const imgData = canvas.toDataURL('image/jpeg', 0.9);
   const pdf = new jsPDF({ orientation: orientacionCrear, unit: 'mm', format: 'a4' });
   const pdfW = pdf.internal.pageSize.getWidth();
-  const pdfH = (canvas.height * pdfW) / canvas.width;
-  pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH);
+  const pdfPageH = pdf.internal.pageSize.getHeight();
+  agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, false);
   const blob = pdf.output('blob');
 
   const cliente = document.getElementById('inp-cliente').value || 'documento';
@@ -1646,12 +1680,10 @@ async function descargarTallerPDF() {
       if (img.complete) r(); else { img.onload = r; img.onerror = r; }
     })));
     const canvas = await html2canvas(tpl.querySelector('.pdf-page'), { scale: 2, useCORS: true, backgroundColor: '#ffffff', width: anchoCapturaTaller });
-    const imgData = canvas.toDataURL('image/jpeg', 0.92);
-    if (i === 0) thumbnail = imgData;
+    if (i === 0) thumbnail = canvas.toDataURL('image/jpeg', 0.92);
     const pdfW = pdf.internal.pageSize.getWidth();
-    const pdfH = (canvas.height * pdfW) / canvas.width;
-    if (i > 0) pdf.addPage();
-    pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH);
+    const pdfPageH = pdf.internal.pageSize.getHeight();
+    agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, i > 0);
   }
 
   const tallerNombre = (document.getElementById('taller-nombre').value || 'taller').replace(/\s+/g, '_');
@@ -1677,11 +1709,9 @@ async function compartirTallerPDF() {
   for (let i = 0; i < pages.length; i++) {
     tpl.innerHTML = pages[i];
     const canvas = await html2canvas(tpl.querySelector('.pdf-page'), { scale: 2, backgroundColor: '#ffffff', width: anchoCapturaTallerShare });
-    const imgData = canvas.toDataURL('image/jpeg', 0.9);
     const pdfW = pdf.internal.pageSize.getWidth();
-    const pdfH = (canvas.height * pdfW) / canvas.width;
-    if (i > 0) pdf.addPage();
-    pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH);
+    const pdfPageH = pdf.internal.pageSize.getHeight();
+    agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, i > 0);
   }
   tpl.innerHTML = '';
 
