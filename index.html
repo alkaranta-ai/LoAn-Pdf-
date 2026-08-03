@@ -1182,7 +1182,10 @@ async function buscarImagenesInternet(query, cantidad = 2) {
     const resultados = data.results || [];
     for (const r of resultados) {
       if (encontradas.length >= cantidad) break;
-      const src = r.thumbnail || r.url;
+      // OJO: r.thumbnail / r.url son URLs del proveedor original (Flickr, Wikimedia, etc.)
+      // y casi nunca tienen CORS habilitado, así que el fetch() de abajo fallaría siempre.
+      // El endpoint /thumb/ de la propia API de Openverse sí sirve las imágenes con CORS.
+      const src = r.id ? `https://api.openverse.org/v1/images/${r.id}/thumb/` : (r.thumbnail || r.url);
       if (!src) continue;
       try {
         const dataUrl = await urlAdataUrl(src);
