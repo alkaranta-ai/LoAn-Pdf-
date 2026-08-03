@@ -762,6 +762,13 @@
       </div>
       <input type="text" id="cfg-email" placeholder="contacto@..." style="width:180px" />
     </div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">🔑 Clave API Gemini</div>
+        <div class="settings-sub">Se guarda solo en tu dispositivo</div>
+      </div>
+      <input type="password" id="cfg-gemini-key" placeholder="AIza..." style="width:180px" />
+    </div>
     <div style="margin-top:16px;">
       <button class="btn btn-primary" onclick="guardarConfig()">💾 Guardar configuración</button>
     </div>
@@ -869,20 +876,22 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================================
 function cargarConfig() {
   const cfg = JSON.parse(localStorage.getItem('loan_config') || '{}');
-  document.getElementById('cfg-nombre').value = cfg.nombre || '';
-  document.getElementById('cfg-dir').value    = cfg.dir    || '';
-  document.getElementById('cfg-tel').value    = cfg.tel    || '';
-  document.getElementById('cfg-ig').value     = cfg.ig     || '';
-  document.getElementById('cfg-email').value  = cfg.email  || '';
+  document.getElementById('cfg-nombre').value     = cfg.nombre || '';
+  document.getElementById('cfg-dir').value        = cfg.dir    || '';
+  document.getElementById('cfg-tel').value        = cfg.tel    || '';
+  document.getElementById('cfg-ig').value         = cfg.ig     || '';
+  document.getElementById('cfg-email').value      = cfg.email  || '';
+  document.getElementById('cfg-gemini-key').value = cfg.geminiKey || '';
 }
 
 function guardarConfig() {
   const cfg = {
-    nombre: document.getElementById('cfg-nombre').value || 'LoAn Estética',
-    dir:    document.getElementById('cfg-dir').value,
-    tel:    document.getElementById('cfg-tel').value,
-    ig:     document.getElementById('cfg-ig').value,
-    email:  document.getElementById('cfg-email').value,
+    nombre:    document.getElementById('cfg-nombre').value || 'LoAn Estética',
+    dir:       document.getElementById('cfg-dir').value,
+    tel:       document.getElementById('cfg-tel').value,
+    ig:        document.getElementById('cfg-ig').value,
+    email:     document.getElementById('cfg-email').value,
+    geminiKey: document.getElementById('cfg-gemini-key').value.trim(),
   };
   localStorage.setItem('loan_config', JSON.stringify(cfg));
   toast('✅ Configuración guardada');
@@ -934,7 +943,12 @@ function borrarFoto(i) {
 // ============================================================
 //  IA — GENERAR CONTENIDO
 // ============================================================
-const WORKER_URL = 'https://misty-cell-91e2finance-chat-alkaranta.alkaranta.workers.dev';
+const GEMINI_MODEL = 'gemini-2.0-flash';
+
+function getGeminiKey() {
+  const cfg = JSON.parse(localStorage.getItem('loan_config') || '{}');
+  return cfg.geminiKey || '';
+}
 let adjuntoTexto = ''; // contenido del archivo adjunto
 
 async function cargarAdjunto(input) {
@@ -1014,22 +1028,28 @@ ${adjuntoTexto ? `\nCONTENIDO ADJUNTO (incorporalo al documento):\n${adjuntoText
 Redactá el documento completo desarrollando toda la información de arriba. No omitás nada.`;
 
   try {
-    const res = await fetch(WORKER_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemPrompt,
-        contents: [{ role: 'user', parts: [{ text: userMessage }] }],
-        generationConfig: { maxOutputTokens: 4096, temperature: 0.7 }
-      })
-    });
+    const apiKey = getGeminiKey();
+    if (!apiKey) throw new Error('Falta la clave API de Gemini — ingresala en ⚙️ Config');
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: 'user', parts: [{ text: userMessage }] }],
+          generationConfig: { maxOutputTokens: 4096, temperature: 0.7 }
+        })
+      }
+    );
     if (!res.ok) {
       const errText = await res.text();
-      throw new Error(`El servidor respondió ${res.status}: ${errText.slice(0,200)}`);
+      throw new Error(`Gemini respondió ${res.status}: ${errText.slice(0, 200)}`);
     }
     const data = await res.json();
-    if (!data.text) throw new Error('La IA no devolvió contenido (respuesta inesperada del servidor)');
-    iaContent = data.text;
+    const texto = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!texto) throw new Error('Gemini no devolvió contenido (respuesta inesperada)');
+    iaContent = texto;
   } catch(e) {
     console.error('Error generando con IA:', e);
     iaContent = descripcion;
@@ -1316,12 +1336,12 @@ async function cargarAdjuntoTaller(input) {
 }
 
 // ============================================================
-//  TALLERES — LLAMADA AL WORKER COMPARTIDO (esconde la clave, con visión)
+//  TALLERES — LLAMADA DIRECTA A GEMINI (con visión)
 // ============================================================
-// 👉 Reemplazá esta URL por la de TU Worker una vez que lo crees en Cloudflare (ver instrucciones)
-const TALLER_WORKER_URL = 'https://PONE-ACA-TU-WORKER.workers.dev';
-
 async function llamarClaudeIA(_sinUsar, systemPrompt, userText, images) {
+  const apiKey = getGeminiKey();
+  if (!apiKey) throw new Error('Falta la clave API de Gemini — ingresala en ⚙️ Config');
+
   const parts = [];
   if (userText) parts.push({ text: userText });
   images.forEach(img => {
@@ -1331,24 +1351,28 @@ async function llamarClaudeIA(_sinUsar, systemPrompt, userText, images) {
     }
   });
 
-  const res = await fetch(TALLER_WORKER_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      systemPrompt,
-      contents: [{ role: 'user', parts }],
-      generationConfig: { maxOutputTokens: 4096, temperature: 0.7 },
-    }),
-  });
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ role: 'user', parts }],
+        generationConfig: { maxOutputTokens: 4096, temperature: 0.7 },
+      }),
+    }
+  );
 
   if (!res.ok) {
     const errText = await res.text();
-    if (res.status === 429) throw new Error('Llegaste al límite gratuito de usos por hoy — probá de nuevo más tarde');
-    throw new Error(`El servidor respondió ${res.status}: ${errText.slice(0, 200)}`);
+    if (res.status === 429) throw new Error('Llegaste al límite de usos por hoy — probá de nuevo más tarde');
+    throw new Error(`Gemini respondió ${res.status}: ${errText.slice(0, 200)}`);
   }
   const data = await res.json();
-  if (!data.text) throw new Error('La IA no devolvió texto (puede que haya bloqueado la respuesta por seguridad — probá reformular)');
-  return data.text;
+  const texto = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!texto) throw new Error('Gemini no devolvió texto (puede que haya bloqueado la respuesta — probá reformular)');
+  return texto;
 }
 
 function parsearJSONIA(texto) {
