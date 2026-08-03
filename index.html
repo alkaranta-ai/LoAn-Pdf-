@@ -762,13 +762,6 @@
       </div>
       <input type="text" id="cfg-email" placeholder="contacto@..." style="width:180px" />
     </div>
-    <div class="settings-row">
-      <div>
-        <div class="settings-label">🔑 Clave API Gemini</div>
-        <div class="settings-sub">Se guarda solo en tu dispositivo</div>
-      </div>
-      <input type="password" id="cfg-gemini-key" placeholder="AIza..." style="width:180px" />
-    </div>
     <div style="margin-top:16px;">
       <button class="btn btn-primary" onclick="guardarConfig()">💾 Guardar configuración</button>
     </div>
@@ -876,22 +869,20 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================================
 function cargarConfig() {
   const cfg = JSON.parse(localStorage.getItem('loan_config') || '{}');
-  document.getElementById('cfg-nombre').value     = cfg.nombre || '';
-  document.getElementById('cfg-dir').value        = cfg.dir    || '';
-  document.getElementById('cfg-tel').value        = cfg.tel    || '';
-  document.getElementById('cfg-ig').value         = cfg.ig     || '';
-  document.getElementById('cfg-email').value      = cfg.email  || '';
-  document.getElementById('cfg-gemini-key').value = cfg.geminiKey || '';
+  document.getElementById('cfg-nombre').value = cfg.nombre || '';
+  document.getElementById('cfg-dir').value    = cfg.dir    || '';
+  document.getElementById('cfg-tel').value    = cfg.tel    || '';
+  document.getElementById('cfg-ig').value     = cfg.ig     || '';
+  document.getElementById('cfg-email').value  = cfg.email  || '';
 }
 
 function guardarConfig() {
   const cfg = {
-    nombre:    document.getElementById('cfg-nombre').value || 'LoAn Estética',
-    dir:       document.getElementById('cfg-dir').value,
-    tel:       document.getElementById('cfg-tel').value,
-    ig:        document.getElementById('cfg-ig').value,
-    email:     document.getElementById('cfg-email').value,
-    geminiKey: document.getElementById('cfg-gemini-key').value.trim(),
+    nombre: document.getElementById('cfg-nombre').value || 'LoAn Estética',
+    dir:    document.getElementById('cfg-dir').value,
+    tel:    document.getElementById('cfg-tel').value,
+    ig:     document.getElementById('cfg-ig').value,
+    email:  document.getElementById('cfg-email').value,
   };
   localStorage.setItem('loan_config', JSON.stringify(cfg));
   toast('✅ Configuración guardada');
@@ -944,10 +935,10 @@ function borrarFoto(i) {
 //  IA — GENERAR CONTENIDO
 // ============================================================
 const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_API_KEY = 'AQ.Ab8RN6LhZvumrkF8PeG_8Io4xh6HxViVnF8VHUiAR1352VHZVw';
 
 function getGeminiKey() {
-  const cfg = JSON.parse(localStorage.getItem('loan_config') || '{}');
-  return cfg.geminiKey || '';
+  return GEMINI_API_KEY;
 }
 let adjuntoTexto = ''; // contenido del archivo adjunto
 
