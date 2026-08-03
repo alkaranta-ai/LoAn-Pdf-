@@ -36,14 +36,16 @@ PWA para generar PDFs con identidad LoAn: presupuestos, fichas de clientes, info
 - **Reusar**: podés reutilizar documentos previos como base
 - **Descarga + Compartir**: PDF listo en segundos
 
-## Configuración de IA (opcional)
+## Configuración de IA (obligatorio para usar "Generar con IA")
 
-Sin clave API igual podés escribir el contenido vos misma.
+La app usa la IA de Google Gemini (plan gratuito). Cada persona necesita SU PROPIA clave —
+si varias personas comparten la misma clave, se agota el límite diario de uso y aparece
+el error "llegaste al límite de usos por hoy".
 
 Para activar la IA:
-1. Entrá a https://console.anthropic.com
-2. Creá una API Key
-3. En la app, tab ⚙️ Config → pegá la clave → Guardar
+1. Entrá a https://aistudio.google.com/apikey con tu cuenta de Google
+2. Creá una API Key (es gratis)
+3. En la app, tab ⚙️ Config → pegá la clave en "🔑 Clave de IA (Gemini)" → Guardar
 
 La clave se guarda solo en tu dispositivo (localStorage), nunca sale a ningún servidor.
 
