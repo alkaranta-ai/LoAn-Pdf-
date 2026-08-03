@@ -818,6 +818,13 @@
       </div>
       <input type="text" id="cfg-email" placeholder="contacto@..." style="width:180px" />
     </div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">🌐 Imágenes automáticas de internet</div>
+        <div class="settings-sub">Si no subís fotos ni hay imágenes en el PDF adjunto, busca fotos gratuitas (bancos libres de derechos) según el tipo de documento</div>
+      </div>
+      <input type="checkbox" id="cfg-imgs-auto" style="width:22px; height:22px;" />
+    </div>
     <div style="margin-top:16px;">
       <button class="btn btn-primary" onclick="guardarConfig()">💾 Guardar configuración</button>
     </div>
@@ -940,6 +947,7 @@ function cargarConfig() {
   document.getElementById('cfg-tel').value    = cfg.tel    || '';
   document.getElementById('cfg-ig').value     = cfg.ig     || '';
   document.getElementById('cfg-email').value  = cfg.email  || '';
+  document.getElementById('cfg-imgs-auto').checked = cfg.imgsAuto !== false; // default: activado
 }
 
 function guardarConfig() {
@@ -949,6 +957,7 @@ function guardarConfig() {
     tel:    document.getElementById('cfg-tel').value,
     ig:     document.getElementById('cfg-ig').value,
     email:  document.getElementById('cfg-email').value,
+    imgsAuto: document.getElementById('cfg-imgs-auto').checked,
   };
   localStorage.setItem('loan_config', JSON.stringify(cfg));
   toast('✅ Configuración guardada');
@@ -987,6 +996,7 @@ function renderFotos() {
     img.style.position = 'relative';
     img.innerHTML = `
       <img src="${p.dataUrl}" class="photo-thumb" />
+      ${p.origen === 'internet' ? `<span title="Agregada automáticamente de internet" style="position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,.6);color:white;border-radius:6px;font-size:10px;padding:1px 5px;">🌐</span>` : ''}
       <button onclick="borrarFoto(${i})" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:22px;height:22px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>`;
     grid.appendChild(img);
   });
@@ -1067,6 +1077,144 @@ async function extraerImagenesDePDF(pdf, minSize = 60) {
     }
   }
   return imagenes;
+}
+
+// ============================================================
+//  IMÁGENES INTELIGENTES DESDE INTERNET (fallback)
+//  Orden de prioridad para ilustrar un documento:
+//    1) Fotos que el usuario sube a mano
+//    2) Imágenes encontradas dentro del PDF de referencia adjunto
+//    3) Si ninguna de las anteriores existe → buscar automáticamente
+//       fotos libres de derechos en internet, relacionadas con el
+//       tipo de documento y lo que se describió.
+//  Fuente: Openverse (openverse.org) — API pública, sin clave,
+//  sólo devuelve contenido con licencia Creative Commons / uso libre.
+// ============================================================
+
+// Diccionario de términos de estética (ES→EN) para armar mejores búsquedas
+const DICCIONARIO_ESTETICA = [
+  [/pesta[ñn]as?/i,        'eyelash extensions beauty'],
+  [/cejas?/i,               'eyebrow shaping beauty'],
+  [/depilaci[oó]n/i,        'waxing beauty treatment'],
+  [/facial(es)?/i,          'facial treatment spa'],
+  [/u[ñn]as?|manicur/i,     'manicure nail salon'],
+  [/pedicur/i,              'pedicure salon'],
+  [/masaj/i,                'spa massage relaxation'],
+  [/maquilla/i,              'makeup beauty artist'],
+  [/piel|dermat/i,           'skincare dermatology'],
+  [/lifting/i,               'eyelash lift beauty salon'],
+  [/microblading|micropigment/i, 'microblading eyebrow beauty'],
+  [/masaje|reduc/i,          'body treatment spa'],
+];
+
+// Consulta base según el tipo de documento (fallback si no hay coincidencias)
+const QUERY_BASE_POR_TIPO = {
+  presupuesto:        'beauty salon spa',
+  ficha:              'beauty salon client care',
+  informe:            'beauty spa treatment session',
+  consentimiento:     'beauty salon consultation',
+  turno:              'beauty appointment calendar',
+  otro:               'beauty salon',
+  taller_apunte:      'beauty workshop training',
+  taller_planilla:    'workshop attendance beauty',
+  taller_certificado: 'certificate award ceremony',
+  taller_libre:       'beauty workshop',
+};
+
+// Arma una consulta de búsqueda en inglés a partir del tipo de doc + texto libre
+function construirQueryImagen(tipo, ...textos) {
+  const texto = textos.filter(Boolean).join(' ').toLowerCase();
+  const coincidencias = DICCIONARIO_ESTETICA
+    .filter(([regex]) => regex.test(texto))
+    .map(([, termino]) => termino);
+  if (coincidencias.length) return coincidencias.slice(0, 2).join(' ');
+  return QUERY_BASE_POR_TIPO[tipo] || 'beauty salon spa';
+}
+
+// Intenta mejorar la consulta con la IA (opcional); si falla, se usa el heurístico de arriba
+async function refinarQueryConIA(tipoLabel, texto) {
+  try {
+    const apiKey = getGeminiKey();
+    if (!apiKey || !texto) return null;
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text:
+            `Dado este contexto de un documento de un negocio de estética ("${tipoLabel}"): "${texto.slice(0, 400)}"\n` +
+            `Respondé ÚNICAMENTE con 2 a 4 palabras clave en INGLÉS, separadas por comas, para buscar UNA foto de stock genérica y libre de derechos que ilustre el documento (nada de marcas ni nombres propios). Sin explicaciones, sólo las palabras clave.`
+          }] }],
+          generationConfig: { maxOutputTokens: 30, temperature: 0.4 }
+        })
+      }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const texto2 = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!texto2) return null;
+    return texto2.replace(/[\n"]/g, '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 4).join(' ');
+  } catch (e) { return null; }
+}
+
+// Descarga una imagen (URL externa) y la convierte a dataURL para poder incrustarla en el PDF
+async function urlAdataUrl(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('no se pudo descargar');
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+// Busca imágenes libres de derechos en Openverse y las devuelve ya como dataURL
+async function buscarImagenesInternet(query, cantidad = 2) {
+  const encontradas = [];
+  try {
+    const url = `https://api.openverse.org/v1/images/?q=${encodeURIComponent(query)}&page_size=${cantidad * 3}&license_type=commercial,modification`;
+    const res = await fetch(url);
+    if (!res.ok) return encontradas;
+    const data = await res.json();
+    const resultados = data.results || [];
+    for (const r of resultados) {
+      if (encontradas.length >= cantidad) break;
+      const src = r.thumbnail || r.url;
+      if (!src) continue;
+      try {
+        const dataUrl = await urlAdataUrl(src);
+        encontradas.push({
+          dataUrl,
+          name: (r.title || 'imagen').slice(0, 40),
+          credito: `${r.creator ? 'Foto: ' + r.creator : 'Foto de internet'} (${r.license ? r.license.toUpperCase() : 'CC'}) vía Openverse`,
+          origen: 'internet',
+        });
+      } catch (e) { /* si una imagen puntual falla la descarga, probamos la siguiente */ }
+    }
+  } catch (e) { /* sin conexión o API caída: seguimos sin imágenes, no rompemos el flujo */ }
+  return encontradas;
+}
+
+// Punto de entrada: se llama antes de armar el PDF. Si ya hay fotos (subidas o
+// extraídas del PDF adjunto) no hace nada. Si no hay ninguna y el usuario tiene
+// la opción activada en ⚙️ Config, busca y agrega automáticamente.
+async function completarFotosConInternet(arregloFotos, tipo, tipoLabel, textoContexto, cantidad = 2) {
+  if (arregloFotos.length > 0) return false; // ya hay fotos propias o del PDF: no tocamos nada
+  const cfg = getConfig();
+  if (cfg.imgsAuto === false) return false; // el usuario desactivó la búsqueda automática
+
+  let query = await refinarQueryConIA(tipoLabel, textoContexto);
+  if (!query) query = construirQueryImagen(tipo, textoContexto);
+
+  const nuevas = await buscarImagenesInternet(query, cantidad);
+  if (nuevas.length) {
+    nuevas.forEach(n => arregloFotos.push(n));
+    return true;
+  }
+  return false;
 }
 
 async function cargarAdjunto(input) {
@@ -1264,11 +1412,16 @@ function buildPDFHtml() {
   // Photos HTML
   let photosHtml = '';
   if (photos.length) {
+    const hayImgsInternet = photos.some(p => p.origen === 'internet');
     photosHtml = `<div class="pdf-section">
       <div class="pdf-section-title">📷 Registro fotográfico</div>
       <div class="pdf-photos">
-        ${photos.map(p => `<img src="${p.dataUrl}" />`).join('')}
+        ${photos.map(p => `<div style="display:flex; flex-direction:column; gap:2px;">
+          <img src="${p.dataUrl}" />
+          ${p.credito ? `<span style="font-size:8px; color:#999; max-width:150px;">${p.credito}</span>` : ''}
+        </div>`).join('')}
       </div>
+      ${hayImgsInternet ? `<p style="font-size:10px; color:var(--gris); margin-top:6px;">🌐 Algunas imágenes fueron agregadas automáticamente desde bancos de fotos libres (Openverse), ya que no se subieron fotos propias.</p>` : ''}
     </div>`;
   }
 
@@ -1311,7 +1464,22 @@ function buildPDFHtml() {
 // ============================================================
 //  PREVIEW
 // ============================================================
-function previsualizarPDF() {
+async function prepararFotosCrear() {
+  const tipoLabel = DOC_TYPES[selectedType]?.label || 'Documento';
+  const contexto = [
+    document.getElementById('inp-descripcion')?.value,
+    document.getElementById('inp-cuerpo')?.value,
+    document.getElementById('inp-ia-guardado')?.value,
+  ].filter(Boolean).join(' ');
+  const agregadas = await completarFotosConInternet(photos, selectedType, tipoLabel, contexto);
+  if (agregadas) {
+    renderFotos();
+    toast('🌐 Se agregaron fotos automáticas de internet (podés borrarlas o subir las tuyas)');
+  }
+}
+
+async function previsualizarPDF() {
+  await prepararFotosCrear();
   const html = buildPDFHtml();
   const container = document.getElementById('preview-container');
   container.innerHTML = `<div style="padding:24px; font-family:Georgia,serif;">${html}</div>`;
@@ -1365,6 +1533,7 @@ function agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, empezarNuevaPagina) 
 //  DESCARGAR PDF
 // ============================================================
 async function descargarPDF() {
+  await prepararFotosCrear();
   toast('📄 Generando PDF...');
 
   const { jsPDF } = window.jspdf;
@@ -1412,6 +1581,7 @@ async function descargarPDF() {
 // ============================================================
 async function compartirPDF() {
   if (!navigator.share) { descargarPDF(); return; }
+  await prepararFotosCrear();
   const { jsPDF } = window.jspdf;
   const tpl = document.getElementById('pdf-template');
   tpl.innerHTML = buildPDFHtml();
