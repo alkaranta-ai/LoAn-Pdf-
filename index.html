@@ -1321,7 +1321,8 @@ Reglas ESTRICTAS que siempre cumplís:
 - NO ponés cabecera, logo, ni pie de página.
 - NO ponés frases como "aquí está el documento" ni introducción tuya. Empezás directo con el contenido.
 - NO mencionás reglas, restricciones, finanzas, ni nada que no sea el documento de estética en sí.
-- Si te pasan 20 líneas de información, el documento tiene que reflejar esas 20 líneas desarrolladas.`;
+- Si te pasan 20 líneas de información, el documento tiene que reflejar esas 20 líneas desarrolladas.
+- NO agregás imágenes, links ni sintaxis Markdown de ningún tipo (nada de "![texto](url)", "[texto](url)", "#" ni "*"). Texto plano únicamente.`;
 
   const userMessage = `Tipo de documento: ${tipoLabel}
 ${cliente ? `Cliente/a: ${cliente}` : ''}
@@ -1399,31 +1400,49 @@ function textoASeccionesHtml(cuerpo) {
   // dónde empieza y termina cada uno y evitar cortarlo entre dos hojas.
   const itemsHtml = (items) => items.map(t => `<div class="pdf-item">${t}</div>`).join('');
 
+  // Limpia restos de sintaxis Markdown que a veces agrega la IA y que la
+  // plantilla no puede renderizar (imágenes/links rotos, encabezados, etc.)
+  // Se aplica tanto a títulos como a líneas de contenido.
+  const limpiarMarkdown = (t) => t
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')           // ![alt](url) → nada (no hay forma de mostrar esa imagen)
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')         // [texto](url) → texto
+    .replace(/\*\*(.*?)\*\*/g, '$1')                 // **negrita** → negrita
+    .replace(/\*(.*?)\*/g, '$1')                     // *cursiva* → cursiva
+    .replace(/^#{1,6}\s*/, '')                       // # Encabezado → Encabezado
+    .replace(/^[-•]\s*/, '')                         // viñetas
+    .trim();
+
+  // Un título de sección solo se vuelve parte del documento si le sigue
+  // contenido real. Si quedó "huérfano" (por ej. un subtítulo que la IA usó
+  // solo como introducción de un grupo), se descarta en vez de dejar un
+  // bloque vacío que puede arruinar la paginación.
   const flushSection = () => {
-    if (currentSection) {
+    if (currentSection && currentContent.length) {
       bodyHtml += `<div class="pdf-section">
         <div class="pdf-section-title">${currentSection}</div>
         ${itemsHtml(currentContent)}
       </div>`;
-    } else if (currentContent.length) {
+    } else if (!currentSection && currentContent.length) {
       bodyHtml += `<div class="pdf-section">${itemsHtml(currentContent)}</div>`;
     }
   };
 
   lines.forEach(line => {
-    const trimmed = line.trim();
+    let trimmed = line.trim();
     if (!trimmed) return;
+    // Si la línea es puramente una imagen/link markdown rotos, se descarta directamente
+    if (/^!?\[[^\]]*\]\([^)]*\)$/.test(trimmed)) return;
     // Título: línea corta (hasta 60 chars) que termina en ":" y no tiene punto
     const estitulo = trimmed.endsWith(':') && trimmed.length <= 60 && !trimmed.includes('.');
     // O formato "**Título**:" o "### Título"
     const esTituloMd = /^(\*\*|#{1,3}\s?)(.+?)(\*\*)?:?$/.test(trimmed) && trimmed.length <= 60;
     if (estitulo || esTituloMd) {
       flushSection();
-      currentSection = trimmed.replace(/^[#\*\s]+/, '').replace(/:$/, '').trim();
+      currentSection = limpiarMarkdown(trimmed.replace(/:$/, ''));
       currentContent = [];
     } else {
-      const limpia = trimmed.replace(/\*\*(.*?)\*\*/g, '$1').replace(/^[-•]\s*/, '');
-      currentContent.push(limpia);
+      const limpia = limpiarMarkdown(trimmed);
+      if (limpia) currentContent.push(limpia);
     }
   });
   flushSection();
@@ -1514,6 +1533,10 @@ async function prepararFotosCrear() {
   if (agregadas) {
     renderFotos();
     toast('🌐 Se agregaron fotos automáticas de internet (podés borrarlas o subir las tuyas)');
+  } else if (photos.length === 0 && getConfig().imgsAuto !== false) {
+    // No había fotos propias y la búsqueda automática no encontró nada (o falló
+    // la conexión con el banco de imágenes) — avisamos en vez de fallar en silencio.
+    toast('ℹ️ No se encontraron fotos automáticas para este documento — podés subir las tuyas');
   }
 }
 
@@ -1531,6 +1554,8 @@ async function prepararFotosTaller() {
   if (agregadas) {
     renderFotosTaller();
     toast('🌐 Se agregaron fotos automáticas de internet (podés borrarlas o subir las tuyas)');
+  } else if (tallerPhotos.length === 0 && getConfig().imgsAuto !== false) {
+    toast('ℹ️ No se encontraron fotos automáticas para este documento — podés subir las tuyas');
   }
 }
 
@@ -1628,10 +1653,13 @@ function elegirCorte(filasBlancas, bloques, idealY, limiteInferior, altoPaginaPx
   if (bloque) {
     const contenidoAntes = bloque.top - limiteInferior;
     const altoBloque = bloque.bottom - bloque.top;
-    // Solo empujamos el bloque completo si: (a) ya aprovechamos una parte
-    // razonable de la hoja actual, y (b) el bloque entero entra en una
-    // hoja completa (si no entrara, no hay forma de no partirlo igual).
-    if (contenidoAntes >= altoPaginaPx * 0.15 && altoBloque <= altoPaginaPx) {
+    // Solo empujamos el bloque completo a la hoja siguiente si ya se
+    // aprovechó la MAYOR PARTE de la hoja actual (si no, dejaríamos una
+    // franja en blanco enorme abajo, ya que la imagen de cada hoja no se
+    // estira para llenar la página). Umbral alto a propósito: preferimos
+    // buscar un corte por espacio en blanco antes que sacrificar media hoja.
+    const UMBRAL_APROVECHAMIENTO = 0.65;
+    if (contenidoAntes >= altoPaginaPx * UMBRAL_APROVECHAMIENTO && altoBloque <= altoPaginaPx) {
       return Math.floor(bloque.top);
     }
   }
@@ -1656,6 +1684,18 @@ function agregarCanvasPaginado(pdf, canvas, pdfW, pdfPageH, empezarNuevaPagina, 
   if (canvas.height <= altoPaginaPx) {
     const sliceData = canvas.toDataURL('image/jpeg', 0.92);
     const altoMm = (canvas.height * pdfW) / canvas.width;
+    if (empezarNuevaPagina) pdf.addPage();
+    pdf.addImage(sliceData, 'JPEG', 0, 0, pdfW, altoMm);
+    return;
+  }
+
+  // Si el contenido se pasa de una hoja por muy poco (hasta un 12%), es
+  // preferible achicar levemente todo el documento y que entre en una sola
+  // página, en vez de generar una segunda hoja casi vacía con una sola línea.
+  const SOBRANTE_TOLERABLE = 1.12;
+  if (canvas.height <= altoPaginaPx * SOBRANTE_TOLERABLE) {
+    const sliceData = canvas.toDataURL('image/jpeg', 0.92);
+    const altoMm = (altoPaginaPx * pdfW) / canvas.width; // fuerza a que ocupe exactamente una hoja
     if (empezarNuevaPagina) pdf.addPage();
     pdf.addImage(sliceData, 'JPEG', 0, 0, pdfW, altoMm);
     return;
@@ -1991,7 +2031,8 @@ Reglas ESTRICTAS:
 - Desarrollá cada punto con el detalle que corresponda, no resumas de más ni omitas información que te dieron.
 - Español rioplatense, tono claro y profesional, apto para entregar a alumnas/os.
 - NO pongas cabecera, logo, ni pie de página — de eso se encarga la plantilla.
-- NO escribas frases como "acá está tu apunte" ni ningún comentario tuyo. Empezá directo con el contenido.`;
+- NO escribas frases como "acá está tu apunte" ni ningún comentario tuyo. Empezá directo con el contenido.
+- NO agregues imágenes, links ni sintaxis Markdown de ningún tipo (nada de "![texto](url)", "[texto](url)", "#" ni "*"). Escribí en texto plano — las imágenes reales se agregan aparte, con fotos que suba el usuario.`;
     userText = `Taller: ${tallerNombre}\nFecha: ${fecha}\n\nQUÉ QUIERO QUE ARMES:\n${descripcion}${tallerAdjuntoTexto ? `\n\nCONTENIDO EXTRAÍDO DE PDF/TXT ADJUNTO:\n${tallerAdjuntoTexto}` : ''}${tallerPhotos.length ? '\n\nHay fotos adjuntas: son apuntes/textos, leé lo que dicen y usalo como base del contenido.' : ''}`;
   }
 
