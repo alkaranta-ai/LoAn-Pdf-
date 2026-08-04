@@ -1598,26 +1598,35 @@ async function extraerImagenesDePDF(pdf, minSize = 60) {
 //  sólo devuelve contenido con licencia Creative Commons / uso libre.
 // ============================================================
 
-// Diccionario de términos de estética (ES→EN) para armar mejores búsquedas
+// Diccionario de términos de estética (ES→EN) para armar mejores búsquedas.
+// IMPORTANTE: el orden es de PRIORIDAD, no alfabético ni casual. Van primero
+// los términos de una técnica o servicio bien concreto (maderoterapia,
+// choterapia, pestañas, uñas, etc.) y al final los genéricos (facial, piel,
+// masaje, contorno corporal), porque estos últimos aparecen de paso en casi
+// cualquier documento de estética y si se los toma como prioritarios terminan
+// tapando el tema real (ej: un apunte de maderoterapia también menciona
+// "piel" y "masaje", y sin esta prioridad la búsqueda terminaba trayendo
+// fotos de manicura o tratamientos faciales en vez de maderoterapia).
 const DICCIONARIO_ESTETICA = [
-  [/pesta[ñn]as?/i,        'eyelash extensions beauty'],
-  [/cejas?/i,               'eyebrow shaping beauty'],
-  [/depilaci[oó]n/i,        'waxing beauty treatment'],
-  [/facial(es)?/i,          'facial treatment spa'],
-  [/u[ñn]as?|manicur/i,     'manicure nail salon'],
-  [/pedicur/i,              'pedicure salon'],
-  [/masaj/i,                'spa massage relaxation'],
-  [/maquilla/i,              'makeup beauty artist'],
-  [/piel|dermat/i,           'skincare dermatology'],
-  [/lifting/i,               'eyelash lift beauty salon'],
-  [/microblading|micropigment/i, 'microblading eyebrow beauty'],
+  // — técnicas / servicios específicos —
   [/madero(terapia)?/i,     'anti-cellulite body massage spa'],
   [/choco(terapia)?/i,      'body wrap spa treatment'],
   [/presoterapia|drenaje linf[aá]tico/i, 'lymphatic drainage leg massage spa'],
   [/radiofrecuencia|criolip[oó]lisis|cavitaci[oó]n/i, 'body contouring spa treatment'],
   [/dermapen|peeling|exfoliaci[oó]n/i, 'facial skincare treatment'],
+  [/microblading|micropigment/i, 'microblading eyebrow beauty'],
+  [/lifting/i,               'eyelash lift beauty salon'],
+  [/pesta[ñn]as?/i,        'eyelash extensions beauty'],
+  [/cejas?/i,               'eyebrow shaping beauty'],
+  [/depilaci[oó]n/i,        'waxing beauty treatment'],
+  [/u[ñn]as?|manicur/i,     'manicure nail salon'],
+  [/pedicur/i,              'pedicure salon'],
+  [/maquilla/i,              'makeup beauty artist'],
+  // — genéricos: solo se usan si no hubo ninguna coincidencia específica arriba —
   [/contorno corporal|reduc/i, 'body treatment spa'],
-  [/masaje/i,                'body treatment spa'],
+  [/facial(es)?/i,          'facial treatment spa'],
+  [/piel|dermat/i,           'skincare dermatology'],
+  [/masaj(e)?/i,             'spa massage relaxation'],
 ];
 
 // Consulta base según el tipo de documento (fallback si no hay coincidencias)
@@ -1636,12 +1645,13 @@ const QUERY_BASE_POR_TIPO = {
 
 // Busca coincidencia en el diccionario curado. Devuelve null si no hay ninguna
 // (a diferencia de construirQueryImagen, que siempre devuelve algo por el fallback genérico).
+// Se queda SOLO con la coincidencia más específica (la de mayor prioridad en
+// la lista de arriba) en vez de combinar varias, para no mezclar el tema real
+// del documento con palabras genéricas que aparecen de paso en el texto.
 function coincidenciaDiccionario(texto) {
   const t = (texto || '').toLowerCase();
-  const coincidencias = DICCIONARIO_ESTETICA
-    .filter(([regex]) => regex.test(t))
-    .map(([, termino]) => termino);
-  return coincidencias.length ? coincidencias.slice(0, 2).join(' ') : null;
+  const match = DICCIONARIO_ESTETICA.find(([regex]) => regex.test(t));
+  return match ? match[1] : null;
 }
 
 // Arma una consulta de búsqueda en inglés a partir del tipo de doc + texto libre
