@@ -1778,13 +1778,31 @@ async function buscarImagenesWikimedia(query, cantidad) {
   return encontradas;
 }
 
+// Busca en el texto del usuario si pidió una cantidad concreta de fotos/imágenes
+// (p.ej. "más de 10 imágenes", "necesito 6 fotos", "15 imagenes"). Si no encuentra
+// nada, devuelve el default. Si encuentra un número, lo respeta (con un máximo
+// razonable para no saturar la búsqueda ni el PDF).
+function extraerCantidadFotosPedida(texto, porDefecto = 2, maximo = 20) {
+  if (!texto) return porDefecto;
+  // "más de 10 imágenes" / "mas de 10 fotos" -> pedimos 10 + 1 para cumplir el "más de"
+  const masDe = texto.match(/m[aá]s\s+de\s+(\d+)\s*(im[aá]genes|fotos)/i);
+  if (masDe) return Math.min(parseInt(masDe[1], 10) + 1, maximo);
+  // "10 imágenes" / "10 fotos" (en cualquier orden, ej. "quiero 10 fotos distintas")
+  const numero = texto.match(/(\d+)\s*(im[aá]genes|fotos)/i);
+  if (numero) return Math.min(parseInt(numero[1], 10), maximo);
+  return porDefecto;
+}
+
 // Punto de entrada: se llama antes de armar el PDF. Si ya hay fotos (subidas o
 // extraídas del PDF adjunto) no hace nada. Si no hay ninguna y el usuario tiene
-// la opción activada en ⚙️ Config, busca y agrega automáticamente.
-async function completarFotosConInternet(arregloFotos, tipo, tipoLabel, textoContexto, cantidad = 2) {
+// la opción activada en ⚙️ Config, busca y agrega automáticamente. La cantidad
+// se calcula a partir de lo que el usuario haya pedido en el texto (por defecto 2).
+async function completarFotosConInternet(arregloFotos, tipo, tipoLabel, textoContexto, cantidad = null) {
   if (arregloFotos.length > 0) return false; // ya hay fotos propias o del PDF: no tocamos nada
   const cfg = getConfig();
   if (cfg.imgsAuto === false) return false; // el usuario desactivó la búsqueda automática
+
+  if (cantidad === null) cantidad = extraerCantidadFotosPedida(textoContexto);
 
   let query = coincidenciaDiccionario(textoContexto);
   if (!query) query = await refinarQueryConIA(tipoLabel, textoContexto);
@@ -1893,7 +1911,7 @@ Redactá el documento completo desarrollando toda la información de arriba. No 
         body: JSON.stringify({
           system_instruction: { parts: [{ text: systemPrompt }] },
           contents: [{ role: 'user', parts: [{ text: userMessage }] }],
-          generationConfig: { maxOutputTokens: 4096, temperature: 0.7 }
+          generationConfig: { maxOutputTokens: 8192, temperature: 0.7 }
         })
       }
     );
@@ -1908,6 +1926,9 @@ Redactá el documento completo desarrollando toda la información de arriba. No 
     const texto = data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!texto) throw new Error('Gemini no devolvió contenido (respuesta inesperada)');
     iaContent = texto;
+    if (data?.candidates?.[0]?.finishReason === 'MAX_TOKENS') {
+      toast('⚠️ El texto generado es muy largo y se cortó — probá dividir el pedido en partes más chicas');
+    }
   } catch(e) {
     console.error('Error generando con IA:', e);
     iaContent = descripcion;
@@ -2503,7 +2524,7 @@ async function llamarClaudeIA(_sinUsar, systemPrompt, userText, images) {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: systemPrompt }] },
         contents: [{ role: 'user', parts }],
-        generationConfig: { maxOutputTokens: 4096, temperature: 0.7 },
+        generationConfig: { maxOutputTokens: 8192, temperature: 0.7 },
       }),
     }
   );
@@ -2518,6 +2539,9 @@ async function llamarClaudeIA(_sinUsar, systemPrompt, userText, images) {
   const data = await res.json();
   const texto = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!texto) throw new Error('Gemini no devolvió texto (puede que haya bloqueado la respuesta — probá reformular)');
+  if (data?.candidates?.[0]?.finishReason === 'MAX_TOKENS') {
+    toast('⚠️ El apunte generado es muy largo y se cortó — probá dividir el pedido en partes más chicas');
+  }
   return texto;
 }
 
