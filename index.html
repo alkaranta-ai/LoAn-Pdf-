@@ -303,6 +303,114 @@
       gap: 4px;
     }
 
+    /* ─── GALERÍA DE FOTOS (base de datos local) ─── */
+    .gallery-item { display: flex; flex-direction: column; gap: 4px; }
+    .gallery-item-imgwrap { position: relative; }
+    .gallery-item input.gallery-cat {
+      font-size: 10px;
+      padding: 5px 6px;
+      border-radius: 6px;
+      text-align: center;
+    }
+    .gallery-empty {
+      font-size: 13px;
+      color: var(--gris);
+      text-align: center;
+      padding: 24px 10px;
+      grid-column: 1 / -1;
+    }
+
+    /* ─── MODAL: elegir fotos de la galería ─── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(26,16,20,.55);
+      z-index: 1000;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .modal-box {
+      background: var(--blanco);
+      width: 100%;
+      max-width: 700px;
+      max-height: 85vh;
+      border-radius: 20px 20px 0 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    @media (min-width: 560px) {
+      .modal-overlay { align-items: center; }
+      .modal-box { border-radius: var(--radius); max-height: 80vh; }
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--gris-light);
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--rosa-dark);
+      flex-shrink: 0;
+    }
+    .modal-close {
+      background: var(--gris-light);
+      border: none;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      font-size: 15px;
+      cursor: pointer;
+      color: var(--gris);
+    }
+    .modal-body { padding: 16px 18px; overflow-y: auto; flex: 1; }
+    .modal-footer {
+      display: flex;
+      gap: 10px;
+      padding: 14px 18px;
+      padding-bottom: calc(14px + env(safe-area-inset-bottom));
+      border-top: 1px solid var(--gris-light);
+      flex-shrink: 0;
+    }
+    .gallery-pick-thumb {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: 10px;
+      overflow: hidden;
+      cursor: pointer;
+      border: 2px solid transparent;
+    }
+    .gallery-pick-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .gallery-pick-thumb.selected { border-color: var(--rosa); }
+    .gallery-pick-check {
+      position: absolute;
+      top: 5px; right: 5px;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.85);
+      border: 1.5px solid var(--rosa-light);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+      color: var(--rosa);
+    }
+    .gallery-pick-thumb.selected .gallery-pick-check {
+      background: var(--rosa);
+      color: var(--blanco);
+      border-color: var(--rosa);
+    }
+    .gallery-pick-label {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: linear-gradient(transparent, rgba(0,0,0,.65));
+      color: #fff;
+      font-size: 10px;
+      padding: 10px 5px 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
     /* ─── HISTORY LIST ─── */
     .history-item {
       display: flex;
@@ -527,6 +635,7 @@
 <div class="tabs" id="tabs">
   <div class="tab active" data-panel="crear">✨ Crear</div>
   <div class="tab" data-panel="talleres">🎓 Talleres</div>
+  <div class="tab" data-panel="galeria">🖼️ Galería</div>
   <div class="tab" data-panel="historial">📂 Historial</div>
   <div class="tab" data-panel="config">⚙️ Config</div>
 </div>
@@ -635,7 +744,11 @@
   <!-- Fotos -->
   <div class="card">
     <div class="card-title">📷 Fotos (opcional)</div>
-    <p style="font-size:13px; color:var(--gris); margin-bottom:10px;">Adjuntá fotos de antes/después, del trabajo realizado o lo que necesites.</p>
+    <p style="font-size:13px; color:var(--gris); margin-bottom:10px;">Adjuntá fotos de antes/después, del trabajo realizado o lo que necesites. Si no subís ninguna, la app busca una automáticamente en internet al generar el PDF.</p>
+    <div style="display:flex; gap:8px; margin-bottom:10px;">
+      <button class="btn btn-ghost btn-small" style="flex:1;" onclick="abrirGaleriaPicker('crear')">🖼️ Mi galería</button>
+      <button class="btn btn-ghost btn-small" style="flex:1;" onclick="abrirInternetPicker('crear')">🌐 Buscar en internet</button>
+    </div>
     <div class="photo-grid" id="photo-grid">
       <label class="photo-add" for="inp-foto">
         <span style="font-size:28px;">+</span>
@@ -725,6 +838,10 @@
 
     <div class="field">
       <label>Fotos (de apuntes, textos, pizarra, listas, lo que sea) — la IA lee lo que dicen</label>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <button class="btn btn-ghost btn-small" style="flex:1;" onclick="abrirGaleriaPicker('taller')">🖼️ Mi galería</button>
+        <button class="btn btn-ghost btn-small" style="flex:1;" onclick="abrirInternetPicker('taller')">🌐 Buscar en internet</button>
+      </div>
       <div class="photo-grid" id="taller-photo-grid">
         <label class="photo-add" for="taller-inp-foto">
           <span style="font-size:28px;">+</span>
@@ -772,6 +889,26 @@
   </div>
 
 </div><!-- /panel-talleres -->
+
+<!-- ============ PANEL GALERÍA ============ -->
+<div class="panel" id="panel-galeria">
+  <div class="card">
+    <div class="card-title">🖼️ Galería de fotos</div>
+    <p style="font-size:13px; color:var(--gris); margin-bottom:14px;">
+      Guardá acá las fotos que usás seguido — logo, diplomas, antes/después típicos, etc. — para elegirlas rápido a la hora de armar cualquier PDF, sin tener que buscarlas de nuevo en el celular. Se guardan solo en este dispositivo.
+    </p>
+    <div class="field" style="margin-bottom:12px;">
+      <input type="text" id="galeria-buscar" placeholder="🔎 Buscar por nombre o categoría..." oninput="renderGaleria()" />
+    </div>
+    <div class="photo-grid" id="galeria-grid">
+      <label class="photo-add" for="galeria-inp-foto">
+        <span style="font-size:28px;">+</span>
+        <span>Agregar</span>
+      </label>
+    </div>
+    <input type="file" id="galeria-inp-foto" accept="image/*" multiple style="display:none" onchange="galeriaAgregarFotos(this)" />
+  </div>
+</div><!-- /panel-galeria -->
 
 <!-- ============ PANEL HISTORIAL ============ -->
 <div class="panel" id="panel-historial">
@@ -867,6 +1004,46 @@
 <!-- ─── PDF TEMPLATE (invisible) ─── -->
 <div id="pdf-template"></div>
 
+<!-- ─── MODAL: elegir fotos de la galería ─── -->
+<div class="modal-overlay" id="galeria-modal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span>🖼️ Elegí fotos de tu galería</span>
+      <button class="modal-close" onclick="cerrarGaleriaPicker()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="photo-grid" id="galeria-modal-grid"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" style="flex:1;" onclick="cerrarGaleriaPicker()">Cancelar</button>
+      <button class="btn btn-primary" style="flex:1;" id="galeria-modal-confirmar" onclick="confirmarGaleriaPicker()">Agregar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── MODAL: buscar fotos en internet ─── -->
+<div class="modal-overlay" id="internet-modal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span>🌐 Buscar fotos en internet</span>
+      <button class="modal-close" onclick="cerrarInternetPicker()">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex; gap:8px; margin-bottom:8px;">
+        <input type="text" id="internet-query" placeholder="Ej: eyelash extensions beauty" style="flex:1;"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();buscarFotosInternetModal();}" />
+        <button class="btn btn-primary btn-small" onclick="buscarFotosInternetModal()">Buscar</button>
+      </div>
+      <p style="font-size:11px; color:var(--gris); margin-bottom:12px;">Fotos libres de derechos (Wikimedia Commons). En inglés suelen salir mejores resultados — ya te dejamos una búsqueda sugerida. Los resultados no son un banco de fotos de stock, así que pueden variar en calidad; elegí las que más te sirvan.</p>
+      <div class="photo-grid" id="internet-modal-grid"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" style="flex:1;" onclick="cerrarInternetPicker()">Cancelar</button>
+      <button class="btn btn-primary" style="flex:1;" id="internet-modal-confirmar" onclick="confirmarInternetPicker()">Agregar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ─── TOAST ─── -->
 <div class="toast" id="toast"></div>
 
@@ -924,6 +1101,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       tab.classList.add('active');
       document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
+      if (tab.dataset.panel === 'galeria') renderGaleria();
     });
   });
 
@@ -1024,6 +1202,298 @@ function borrarFoto(i) {
 }
 
 // ============================================================
+//  GALERÍA DE FOTOS (base de datos local, IndexedDB)
+//  Fotos guardadas acá quedan disponibles para elegir a la hora
+//  de armar cualquier PDF (Crear o Talleres), sin volver a subirlas.
+// ============================================================
+const GALERIA_DB_NAME = 'loan_galeria_db';
+const GALERIA_STORE = 'fotos';
+let _galeriaDBPromise = null;
+
+function galeriaDB() {
+  if (_galeriaDBPromise) return _galeriaDBPromise;
+  _galeriaDBPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(GALERIA_DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(GALERIA_STORE)) {
+        db.createObjectStore(GALERIA_STORE, { keyPath: 'id', autoIncrement: true });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  return _galeriaDBPromise;
+}
+
+async function galeriaGuardar(registro) {
+  const db = await galeriaDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(GALERIA_STORE, 'readwrite');
+    const r = tx.objectStore(GALERIA_STORE).add(registro);
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+}
+
+async function galeriaActualizar(registro) {
+  const db = await galeriaDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(GALERIA_STORE, 'readwrite');
+    const r = tx.objectStore(GALERIA_STORE).put(registro);
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+}
+
+async function galeriaEliminar(id) {
+  const db = await galeriaDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(GALERIA_STORE, 'readwrite');
+    const r = tx.objectStore(GALERIA_STORE).delete(id);
+    r.onsuccess = () => resolve();
+    r.onerror = () => reject(r.error);
+  });
+}
+
+async function galeriaListar() {
+  const db = await galeriaDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(GALERIA_STORE, 'readonly');
+    const r = tx.objectStore(GALERIA_STORE).getAll();
+    r.onsuccess = () => resolve((r.result || []).sort((a, b) => (b.fecha || 0) - (a.fecha || 0)));
+    r.onerror = () => reject(r.error);
+  });
+}
+
+// Redimensiona una imagen grande antes de guardarla, para no llenar el
+// almacenamiento del dispositivo con fotos de 12 megapíxeles del celular.
+function redimensionarImagen(dataUrl, anchoMax = 1400) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const factor = Math.min(1, anchoMax / img.width);
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * factor);
+      c.height = Math.round(img.height * factor);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      resolve(c.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => resolve(dataUrl); // si algo falla, guardamos la original
+    img.src = dataUrl;
+  });
+}
+
+function galeriaAgregarFotos(input) {
+  const files = Array.from(input.files);
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = async e => {
+      const dataUrl = await redimensionarImagen(e.target.result);
+      try {
+        await galeriaGuardar({ dataUrl, name: file.name, categoria: '', fecha: Date.now() });
+        renderGaleria();
+      } catch (err) {
+        console.error('No se pudo guardar en la galería:', err);
+        toast('⚠️ No se pudo guardar la foto en la galería (falta espacio en el dispositivo)');
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+async function galeriaBorrarFoto(id) {
+  if (!confirm('¿Borrar esta foto de tu galería? No afecta a los PDFs ya generados.')) return;
+  await galeriaEliminar(id);
+  renderGaleria();
+}
+
+async function galeriaEditarCategoria(id, input) {
+  const registros = await galeriaListar();
+  const reg = registros.find(r => r.id === id);
+  if (!reg) return;
+  reg.categoria = input.value.trim();
+  await galeriaActualizar(reg);
+}
+
+async function renderGaleria() {
+  const grid = document.getElementById('galeria-grid');
+  if (!grid) return;
+  const busqueda = (document.getElementById('galeria-buscar')?.value || '').trim().toLowerCase();
+  let registros = await galeriaListar();
+  if (busqueda) {
+    registros = registros.filter(r =>
+      (r.name || '').toLowerCase().includes(busqueda) ||
+      (r.categoria || '').toLowerCase().includes(busqueda));
+  }
+
+  grid.innerHTML = `
+    <label class="photo-add" for="galeria-inp-foto">
+      <span style="font-size:28px;">+</span>
+      <span>Agregar</span>
+    </label>`;
+
+  if (!registros.length) {
+    grid.innerHTML += `<div class="gallery-empty">${busqueda ? 'No hay fotos que coincidan con la búsqueda.' : 'Todavía no guardaste fotos. Tocá "Agregar" para empezar tu galería.'}</div>`;
+    return;
+  }
+
+  registros.forEach(r => {
+    const item = document.createElement('div');
+    item.className = 'gallery-item';
+    item.innerHTML = `
+      <div class="gallery-item-imgwrap">
+        <img src="${r.dataUrl}" class="photo-thumb" />
+        <button onclick="galeriaBorrarFoto(${r.id})" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:white;border:none;border-radius:50%;width:22px;height:22px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>
+      </div>
+      <input class="gallery-cat" type="text" placeholder="Categoría (opcional)" value="${(r.categoria || '').replace(/"/g, '&quot;')}" onchange="galeriaEditarCategoria(${r.id}, this)" />`;
+    grid.appendChild(item);
+  });
+}
+
+// ── Modal: elegir fotos de la galería para agregarlas al documento actual ──
+let galeriaPickerTarget = null; // 'crear' | 'taller'
+let galeriaPickerSeleccion = new Set();
+
+async function abrirGaleriaPicker(target) {
+  galeriaPickerTarget = target;
+  galeriaPickerSeleccion = new Set();
+  await renderGaleriaModal();
+  document.getElementById('galeria-modal').style.display = 'flex';
+  actualizarBotonGaleriaModal();
+}
+
+function cerrarGaleriaPicker() {
+  document.getElementById('galeria-modal').style.display = 'none';
+}
+
+async function renderGaleriaModal() {
+  const grid = document.getElementById('galeria-modal-grid');
+  const registros = await galeriaListar();
+  if (!registros.length) {
+    grid.innerHTML = `<div class="gallery-empty">Todavía no tenés fotos guardadas en tu galería.<br>Andá a la pestaña 🖼️ Galería para agregar algunas.</div>`;
+    return;
+  }
+  grid.innerHTML = '';
+  registros.forEach(r => {
+    const thumb = document.createElement('div');
+    thumb.className = 'gallery-pick-thumb';
+    thumb.onclick = () => toggleGaleriaPickerSeleccion(r.id, thumb);
+    thumb.innerHTML = `
+      <img src="${r.dataUrl}" />
+      <span class="gallery-pick-check">✓</span>
+      ${r.categoria ? `<span class="gallery-pick-label">${r.categoria}</span>` : ''}`;
+    grid.appendChild(thumb);
+  });
+}
+
+function toggleGaleriaPickerSeleccion(id, el) {
+  if (galeriaPickerSeleccion.has(id)) {
+    galeriaPickerSeleccion.delete(id);
+    el.classList.remove('selected');
+  } else {
+    galeriaPickerSeleccion.add(id);
+    el.classList.add('selected');
+  }
+  actualizarBotonGaleriaModal();
+}
+
+function actualizarBotonGaleriaModal() {
+  const n = galeriaPickerSeleccion.size;
+  document.getElementById('galeria-modal-confirmar').textContent = n ? `Agregar (${n})` : 'Agregar';
+}
+
+async function confirmarGaleriaPicker() {
+  if (!galeriaPickerSeleccion.size) { cerrarGaleriaPicker(); return; }
+  const registros = await galeriaListar();
+  const elegidas = registros.filter(r => galeriaPickerSeleccion.has(r.id));
+  const destino = galeriaPickerTarget === 'taller' ? tallerPhotos : photos;
+  elegidas.forEach(r => destino.push({ dataUrl: r.dataUrl, name: r.name, origen: 'galeria' }));
+  if (galeriaPickerTarget === 'taller') renderFotosTaller(); else renderFotos();
+  toast(`✅ ${elegidas.length} foto(s) agregada(s) desde la galería`);
+  cerrarGaleriaPicker();
+}
+
+// ── Modal: buscar fotos en internet a demanda (además del respaldo automático) ──
+let internetPickerTarget = null; // 'crear' | 'taller'
+let internetPickerResultados = []; // { dataUrl, name, credito, origen }
+let internetPickerSeleccion = new Set();
+
+function abrirInternetPicker(target) {
+  internetPickerTarget = target;
+  internetPickerResultados = [];
+  internetPickerSeleccion = new Set();
+
+  const tipo = target === 'taller' ? selectedTallerType : selectedType;
+  const tipoLabel = (DOC_TYPES[tipo] && DOC_TYPES[tipo].label) || '';
+  const contexto = target === 'taller'
+    ? [document.getElementById('taller-nombre').value, document.getElementById('taller-descripcion').value].filter(Boolean).join(' ')
+    : [document.getElementById('inp-descripcion').value, document.getElementById('inp-cuerpo').value].filter(Boolean).join(' ');
+
+  document.getElementById('internet-query').value = construirQueryImagen(tipo, contexto);
+  document.getElementById('internet-modal-grid').innerHTML = '';
+  document.getElementById('internet-modal').style.display = 'flex';
+  actualizarBotonInternetModal();
+  buscarFotosInternetModal();
+}
+
+function cerrarInternetPicker() {
+  document.getElementById('internet-modal').style.display = 'none';
+}
+
+async function buscarFotosInternetModal() {
+  const query = document.getElementById('internet-query').value.trim();
+  const grid = document.getElementById('internet-modal-grid');
+  if (!query) return;
+  grid.innerHTML = `<div class="gallery-empty">🔎 Buscando fotos...</div>`;
+  internetPickerSeleccion = new Set();
+  actualizarBotonInternetModal();
+
+  const resultados = await buscarImagenesInternet(query, 9);
+  internetPickerResultados = resultados;
+
+  if (!resultados.length) {
+    grid.innerHTML = `<div class="gallery-empty">No se encontraron fotos para "${query}".<br>Probá con otras palabras (en inglés suele andar mejor).</div>`;
+    return;
+  }
+  grid.innerHTML = '';
+  resultados.forEach((r, i) => {
+    const thumb = document.createElement('div');
+    thumb.className = 'gallery-pick-thumb';
+    thumb.onclick = () => toggleInternetPickerSeleccion(i, thumb);
+    thumb.innerHTML = `<img src="${r.dataUrl}" /><span class="gallery-pick-check">✓</span>`;
+    grid.appendChild(thumb);
+  });
+}
+
+function toggleInternetPickerSeleccion(i, el) {
+  if (internetPickerSeleccion.has(i)) {
+    internetPickerSeleccion.delete(i);
+    el.classList.remove('selected');
+  } else {
+    internetPickerSeleccion.add(i);
+    el.classList.add('selected');
+  }
+  actualizarBotonInternetModal();
+}
+
+function actualizarBotonInternetModal() {
+  const n = internetPickerSeleccion.size;
+  document.getElementById('internet-modal-confirmar').textContent = n ? `Agregar (${n})` : 'Agregar';
+}
+
+function confirmarInternetPicker() {
+  if (!internetPickerSeleccion.size) { cerrarInternetPicker(); return; }
+  const elegidas = [...internetPickerSeleccion].map(i => internetPickerResultados[i]);
+  const destino = internetPickerTarget === 'taller' ? tallerPhotos : photos;
+  elegidas.forEach(r => destino.push(r));
+  if (internetPickerTarget === 'taller') renderFotosTaller(); else renderFotos();
+  toast(`✅ ${elegidas.length} foto(s) agregada(s) desde internet`);
+  cerrarInternetPicker();
+}
+
+// ============================================================
 //  IA — GENERAR CONTENIDO
 // ============================================================
 const GEMINI_MODEL = 'gemini-flash-latest';
@@ -1104,7 +1574,7 @@ async function extraerImagenesDePDF(pdf, minSize = 60) {
 //    3) Si ninguna de las anteriores existe → buscar automáticamente
 //       fotos libres de derechos en internet, relacionadas con el
 //       tipo de documento y lo que se describió.
-//  Fuente: Openverse (openverse.org) — API pública, sin clave,
+//  Fuente: Wikimedia Commons (commons.wikimedia.org) — API pública, sin clave,
 //  sólo devuelve contenido con licencia Creative Commons / uso libre.
 // ============================================================
 
@@ -1200,33 +1670,45 @@ async function urlAdataUrl(url) {
   });
 }
 
-// Busca imágenes libres de derechos en Openverse y las devuelve ya como dataURL
+// Busca imágenes libres de derechos en Wikimedia Commons y las devuelve ya como dataURL.
+// (Antes se usaba Openverse, pero su endpoint de miniaturas está pensado para
+// consumirse solo desde el propio sitio de Openverse: el navegador bloquea la
+// descarga por CORS al pedirla desde cualquier otra app, y la búsqueda fallaba
+// siempre en silencio. La API de Wikimedia soporta pedidos cross-origin desde
+// cualquier sitio a propósito, con el parámetro origin=*.)
 async function buscarImagenesInternet(query, cantidad = 2) {
   const encontradas = [];
   try {
-    const url = `https://api.openverse.org/v1/images/?q=${encodeURIComponent(query)}&page_size=${cantidad * 3}&license_type=commercial,modification`;
+    const url = `https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*` +
+      `&generator=search&gsrnamespace=6&gsrlimit=${cantidad * 4}` +
+      `&gsrsearch=${encodeURIComponent(query)}` +
+      `&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=900`;
     const res = await fetch(url);
-    if (!res.ok) return encontradas;
+    if (!res.ok) { console.warn('Wikimedia Commons respondió', res.status); return encontradas; }
     const data = await res.json();
-    const resultados = data.results || [];
-    for (const r of resultados) {
+    const paginas = data && data.query && data.query.pages ? Object.values(data.query.pages) : [];
+    for (const p of paginas) {
       if (encontradas.length >= cantidad) break;
-      // OJO: r.thumbnail / r.url son URLs del proveedor original (Flickr, Wikimedia, etc.)
-      // y casi nunca tienen CORS habilitado, así que el fetch() de abajo fallaría siempre.
-      // El endpoint /thumb/ de la propia API de Openverse sí sirve las imágenes con CORS.
-      const src = r.id ? `https://api.openverse.org/v1/images/${r.id}/thumb/` : (r.thumbnail || r.url);
+      const info = p.imageinfo && p.imageinfo[0];
+      const src = info && (info.thumburl || info.url);
       if (!src) continue;
+      // Solo nos interesan fotos (jpg/png/webp) — Commons también indexa PDFs, SVGs, etc.
+      if (!/\.(jpe?g|png|webp)(\?|$)/i.test(src)) continue;
       try {
         const dataUrl = await urlAdataUrl(src);
+        const autorHtml = info.extmetadata && info.extmetadata.Artist && info.extmetadata.Artist.value;
+        const autor = autorHtml ? autorHtml.replace(/<[^>]+>/g, '').trim().slice(0, 40) : '';
         encontradas.push({
           dataUrl,
-          name: (r.title || 'imagen').slice(0, 40),
-          credito: `${r.creator ? 'Foto: ' + r.creator : 'Foto de internet'} (${r.license ? r.license.toUpperCase() : 'CC'}) vía Openverse`,
+          name: (p.title || 'imagen').replace(/^File:/i, '').slice(0, 40),
+          credito: `${autor ? 'Foto: ' + autor : 'Foto de internet'} vía Wikimedia Commons`,
           origen: 'internet',
         });
       } catch (e) { /* si una imagen puntual falla la descarga, probamos la siguiente */ }
     }
-  } catch (e) { /* sin conexión o API caída: seguimos sin imágenes, no rompemos el flujo */ }
+  } catch (e) {
+    console.warn('No se pudo buscar en Wikimedia Commons (sin conexión o API caída):', e);
+  }
   return encontradas;
 }
 
@@ -1479,7 +1961,7 @@ function buildPDFHtml() {
           ${p.credito ? `<span style="font-size:8px; color:#999; max-width:150px;">${p.credito}</span>` : ''}
         </div>`).join('')}
       </div>
-      ${hayImgsInternet ? `<p style="font-size:10px; color:var(--gris); margin-top:6px;">🌐 Algunas imágenes fueron agregadas automáticamente desde bancos de fotos libres (Openverse), ya que no se subieron fotos propias.</p>` : ''}
+      ${hayImgsInternet ? `<p style="font-size:10px; color:var(--gris); margin-top:6px;">🌐 Algunas imágenes fueron agregadas automáticamente desde Wikimedia Commons, ya que no se subieron fotos propias.</p>` : ''}
     </div>`;
   }
 
@@ -2144,7 +2626,7 @@ function buildTallerPages() {
           ${p.credito ? `<span style="font-size:8px; color:#999; max-width:150px;">${p.credito}</span>` : ''}
         </div>`).join('')}
       </div>
-      ${hayImgsInternet ? `<p style="font-size:10px; color:var(--gris); margin-top:6px;">🌐 Algunas imágenes fueron agregadas automáticamente desde bancos de fotos libres (Openverse), ya que no se subieron fotos propias.</p>` : ''}
+      ${hayImgsInternet ? `<p style="font-size:10px; color:var(--gris); margin-top:6px;">🌐 Algunas imágenes fueron agregadas automáticamente desde Wikimedia Commons, ya que no se subieron fotos propias.</p>` : ''}
     </div>`;
   }
 
